@@ -1,84 +1,82 @@
-# 校园志愿服务管理平台
+# 🌟 校园志愿服务管理平台
 
-## 项目简介
+> 基于 Spring Boot 3.3.4 + Spring Cloud Alibaba + Vue 3 的现代化微服务志愿服务管理系统
 
-基于Spring Cloud Alibaba微服务架构的校园志愿服务管理平台，支持志愿活动发布、报名管理、时长核销等完整流程，集成AI智能生成活动文案功能。
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.3.4-brightgreen.svg)](https://spring.io/projects/spring-boot)
+[![Spring Cloud](https://img.shields.io/badge/Spring%20Cloud%20Alibaba-2023.0.3.2-blue.svg)](https://github.com/alibaba/spring-cloud-alibaba)
+[![Vue](https://img.shields.io/badge/Vue-3.4-4FC08D.svg)](https://vuejs.org/)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-## 技术栈
+## 📖 项目简介
 
-- **基础框架**: Spring Boot 3.3.4 (Java 17)
-- **微服务治理**: Spring Cloud Alibaba 2023.0.3.2
-- **注册中心**: Nacos 2.x
-- **网关**: Spring Cloud Gateway
-- **持久层**: MySQL 8.0.45 + MyBatis-Plus 3.5.5
-- **缓存**: Redis (用于防超卖)
-- **服务调用**: OpenFeign
-- **监控**: Spring Boot Admin 3.3.4
-- **认证**: JWT
+校园志愿服务管理平台是一个功能完善、界面美观的志愿服务管理系统，支持志愿活动发布、在线报名、时长核销、数据统计等核心功能。系统采用前后端分离架构，具备高可用性、高扩展性和良好的用户体验。
 
-## 系统架构
+### ✨ 核心特性
 
-```
-├── gateway-service      (9000)  - API网关 + JWT鉴权
-├── user-service         (8100)  - 用户服务
-├── activity-service     (8200)  - 活动服务
-├── monitor-service      (9100)  - 监控中心
-└── common                       - 公共模块
-```
+- 🎨 **现代化UI设计** - 响应式布局，支持桌面端、平板、移动端
+- 🔐 **JWT安全认证** - API网关统一鉴权，角色权限控制
+- 🚀 **微服务架构** - 服务注册与发现，负载均衡，高可用
+- 📊 **实时数据统计** - 个人志愿时长、活动参与度等数据可视化
+- 🤖 **AI智能辅助** - 支持AI生成活动描述（可选）
+- 🔄 **防超卖机制** - Redis分布式锁保证活动报名准确性
+- 📱 **移动端适配** - 完美支持手机、平板等移动设备
+- ⚡ **快速登录** - 开发/测试环境一键切换账号
 
-## 核心功能
+## 🏗️ 技术架构
 
-### 1. 用户服务 (user-service)
-- 用户注册/登录
-- JWT Token生成与验证
-- 用户信息管理
-- 志愿时长累计
+### 后端技术栈
 
-### 2. 活动服务 (activity-service)
-- 活动发布与管理
-- 活动列表查询（支持筛选）
-- 志愿活动报名（Redis防超卖）
-- 我的志愿足迹
-- 时长核销
-- AI智能生成活动文案
+| 技术 | 版本 | 说明 |
+|------|------|------|
+| Spring Boot | 3.3.4 | 基础框架（Java 17） |
+| Spring Cloud Alibaba | 2023.0.3.2 | 微服务治理 |
+| Nacos | 2.4.2 | 服务注册与配置中心 |
+| Spring Cloud Gateway | 4.1.5 | API网关 |
+| Spring Cloud LoadBalancer | 4.1.4 | 负载均衡 |
+| MyBatis-Plus | 3.5.9 | ORM框架（Spring Boot 3专版） |
+| MySQL | 8.0.45 | 关系型数据库 |
+| Redis | 5.0+ | 缓存与分布式锁 |
+| JWT | 0.11.5 | 认证令牌 |
+| OpenFeign | 4.1.3 | 服务间调用 |
+| Spring Boot Admin | 3.3.4 | 服务监控 |
 
-### 3. 网关服务 (gateway-service)
-- 统一流量入口
-- 路由转发
-- 全局JWT鉴权
-- 跨域处理
+### 前端技术栈
 
-### 4. 监控服务 (monitor-service)
-- 服务健康监控
-- JVM性能监控
-- 实时日志查看
+| 技术 | 版本 | 说明 |
+|------|------|------|
+| Vue | 3.4 | 渐进式框架 |
+| Vite | 5.4 | 构建工具 |
+| Element Plus | 最新版 | UI组件库 |
+| Pinia | 最新版 | 状态管理 |
+| Vue Router | 4.x | 路由管理 |
+| Axios | 最新版 | HTTP客户端 |
 
-## 数据库设计
-
-### 核心表结构
-
-1. **sys_user** - 用户表
-   - 存储用户基本信息、角色、累计志愿时长
-
-2. **vol_activity** - 志愿活动表
-   - 存储活动详情、招募人数、时间安排、状态
-
-3. **vol_registration** - 报名流水表
-   - 记录报名关系、签到状态、时长核销状态
-
-## 快速开始
+## 🚀 快速开始
 
 ### 环境要求
 
-- JDK 17+
-- Maven 3.8+
-- MySQL 8.0+
-- Redis 5.0+
-- Nacos 2.x
+- **JDK**: 17+
+- **Maven**: 3.6+
+- **MySQL**: 8.0+
+- **Redis**: 5.0+
+- **Node.js**: 16+
+- **Nacos**: 2.x
 
-### 1. 启动基础设施
+### 1. 启动基础服务
 
-#### 启动Nacos
+#### 启动 MySQL
+```bash
+# 导入数据库
+mysql -u root -p < database/init.sql
+# 默认密码: 123888
+```
+
+#### 启动 Redis
+```bash
+redis-server
+```
+
+#### 启动 Nacos
 ```bash
 # Windows
 cd nacos/bin
@@ -88,380 +86,307 @@ startup.cmd -m standalone
 cd nacos/bin
 sh startup.sh -m standalone
 ```
-访问: http://localhost:8848/nacos (默认账号密码: nacos/nacos)
 
-#### 启动Redis
+访问 Nacos 控制台：http://localhost:8848/nacos
+- 默认账号：`nacos`
+- 默认密码：`nacos`
+
+### 2. 启动后端服务
+
+在 IDEA 中按顺序启动：
+
+1. **UserApplication** (8100端口) - 用户服务
+2. **ActivityApplication** (8200端口) - 活动服务  
+3. **GatewayApplication** (9000端口) - API网关
+4. **MonitorApplication** (9100端口，可选) - 监控中心
+
+或使用命令行：
 ```bash
-# Windows
-redis-server.exe redis.windows.conf
-
-# Linux/Mac
-redis-server
-```
-
-### 2. 初始化数据库
-
-```bash
-# 连接MySQL
-mysql -u root -p
-
-# 执行初始化脚本
-source database/init.sql
-```
-
-### 3. 修改配置
-
-根据实际环境修改各服务的 `application.properties`:
-- 数据库连接信息
-- Nacos地址
-- Redis地址
-
-### 4. 编译项目
-
-```bash
+cd services
 mvn clean install -DskipTests
+
+# 启动各个服务
+java -jar user-service/target/user-service-0.0.1-SNAPSHOT.jar
+java -jar activity-service/target/activity-service-0.0.1-SNAPSHOT.jar
+java -jar gateway-service/target/gateway-service-0.0.1-SNAPSHOT.jar
 ```
 
-### 5. 启动服务
-
-按以下顺序启动服务：
+### 3. 启动前端
 
 ```bash
-# 1. 启动监控服务
-cd services/monitor-service
-mvn spring-boot:run
-
-# 2. 启动网关服务
-cd services/gateway-service
-mvn spring-boot:run
-
-# 3. 启动用户服务
-cd services/user-service
-mvn spring-boot:run
-
-# 4. 启动活动服务
-cd services/activity-service
-mvn spring-boot:run
+cd frontend
+npm install
+npm run dev
 ```
 
-### 6. 验证服务
+访问前端：http://localhost:3000
 
-- Nacos控制台: http://localhost:8848/nacos
-- 监控中心: http://localhost:9100
-- API网关: http://localhost:9000
+### 4. 登录测试
 
-## API接口文档
+系统提供 **3 个测试账号**：
 
-### 用户接口
+| 角色 | 用户名 | 密码 | 说明 |
+|------|--------|------|------|
+| 管理员 | `admin` | `password123` | 可发布活动、核销时长 |
+| 志愿者 | `student01` | `password123` | 张三，已有12.5小时 |
+| 志愿者 | `student02` | `password123` | 李四，已有8.0小时 |
 
-#### 1. 用户注册
-```http
-POST http://localhost:9000/user/register
-Content-Type: application/json
+💡 **提示**：登录页面有快速登录标签，点击即可自动填充账号密码！
 
-{
-  "username": "student01",
-  "password": "password123",
-  "realName": "张三",
-  "studentNo": "2024001",
-  "phone": "13800138001",
-  "email": "zhangsan@university.edu"
-}
-```
-
-#### 2. 用户登录
-```http
-POST http://localhost:9000/user/login
-Content-Type: application/json
-
-{
-  "username": "student01",
-  "password": "password123"
-}
-```
-
-返回Token:
-```json
-{
-  "code": 200,
-  "message": "登录成功",
-  "data": {
-    "token": "eyJhbGciOiJIUzI1NiJ9...",
-    "userInfo": {
-      "id": 1,
-      "username": "student01",
-      "realName": "张三",
-      "role": "VOLUNTEER",
-      "totalVolunteerHours": 12.50
-    }
-  }
-}
-```
-
-#### 3. 获取用户信息
-```http
-GET http://localhost:9000/user/info
-Authorization: Bearer {token}
-```
-
-### 活动接口
-
-#### 1. 活动列表
-```http
-GET http://localhost:9000/activity/list?page=1&size=10&status=RECRUITING&category=学长火炬
-```
-
-#### 2. 活动详情
-```http
-GET http://localhost:9000/activity/1
-Authorization: Bearer {token}
-```
-
-#### 3. 创建活动（管理员）
-```http
-POST http://localhost:9000/activity/create
-Authorization: Bearer {admin_token}
-Content-Type: application/json
-
-{
-  "title": "学长火炬 - 新生入学引导",
-  "description": "协助新生办理入学手续...",
-  "location": "学校东门迎新点",
-  "maxParticipants": 50,
-  "volunteerHours": 4.0,
-  "startTime": "2024-09-01T08:00:00",
-  "endTime": "2024-09-01T18:00:00",
-  "registrationDeadline": "2024-08-25T23:59:59",
-  "category": "学长火炬"
-}
-```
-
-#### 4. 报名活动
-```http
-POST http://localhost:9000/activity/register/1
-Authorization: Bearer {token}
-```
-
-#### 5. 我的报名记录
-```http
-GET http://localhost:9000/activity/myRegistrations
-Authorization: Bearer {token}
-```
-
-#### 6. AI生成活动文案（管理员）
-```http
-POST http://localhost:9000/activity/ai/generate
-Authorization: Bearer {admin_token}
-Content-Type: application/json
-
-{
-  "location": "校医院门口",
-  "category": "爱心小屋",
-  "keywords": "献血车, 爱心服务, 周六"
-}
-```
-
-#### 7. 核销时长（管理员）
-```http
-POST http://localhost:9000/activity/confirmHours/1
-Authorization: Bearer {admin_token}
-```
-
-## 测试账号
-
-系统已预置测试账号：
-
-| 用户名 | 密码 | 角色 | 说明 |
-|--------|------|------|------|
-| admin | password123 | ADMIN | 管理员账号 |
-| student01 | password123 | VOLUNTEER | 普通志愿者 |
-| student02 | password123 | VOLUNTEER | 普通志愿者 |
-
-## 核心业务流程
-
-### 1. 志愿活动报名流程
+## 📁 项目结构
 
 ```
-1. 管理员创建活动 → vol_activity表
-2. 活动库存写入Redis → activity:stock:{activityId}
-3. 志愿者浏览活动列表
-4. 志愿者报名 → Redis原子减库存
-5. 报名成功 → vol_registration表
-6. 更新活动当前人数
+cloud-demo/
+├── services/                    # 后端服务
+│   ├── common/                  # 公共模块
+│   │   └── src/main/java/org/example/common/
+│   │       ├── result/          # 统一返回格式
+│   │       ├── util/            # JWT工具类
+│   │       ├── exception/       # 自定义异常
+│   │       └── constant/        # 常量定义
+│   ├── gateway-service/         # API网关 (9000)
+│   │   └── src/main/java/org/example/
+│   │       ├── filter/          # JWT认证过滤器
+│   │       └── config/          # CORS配置
+│   ├── user-service/           # 用户服务 (8100)
+│   │   └── src/main/java/org/example/
+│   │       ├── entity/          # User实体
+│   │       ├── dto/             # 请求DTO
+│   │       ├── vo/              # 响应VO
+│   │       ├── mapper/          # MyBatis Mapper
+│   │       ├── service/         # 业务逻辑
+│   │       └── controller/      # REST接口
+│   ├── activity-service/       # 活动服务 (8200)
+│   │   └── src/main/java/org/example/
+│   │       ├── entity/          # Activity, Registration实体
+│   │       ├── dto/             # 请求DTO
+│   │       ├── vo/              # 响应VO
+│   │       ├── mapper/          # MyBatis Mapper
+│   │       ├── service/         # 业务逻辑 + AI服务
+│   │       ├── feign/           # Feign调用user-service
+│   │       └── controller/      # REST接口
+│   └── monitor-service/        # 监控中心 (9100)
+├── frontend/                    # 前端项目
+│   ├── src/
+│   │   ├── views/              # 页面组件
+│   │   │   ├── Login.vue       # 登录页（美化版）
+│   │   │   ├── Register.vue    # 注册页
+│   │   │   ├── Home.vue        # 首页（响应式）
+│   │   │   ├── ActivityList.vue
+│   │   │   ├── ActivityDetail.vue
+│   │   │   ├── MyCenter.vue
+│   │   │   └── admin/          # 管理员页面
+│   │   ├── components/
+│   │   │   └── Layout.vue      # 布局组件（响应式导航）
+│   │   ├── api/                # API接口
+│   │   ├── router/             # 路由配置
+│   │   ├── store/              # Pinia状态管理
+│   │   ├── utils/              # 工具函数
+│   │   └── style.css           # 全局样式
+│   └── vite.config.js          # Vite配置
+├── database/                    # 数据库脚本
+│   └── init.sql                # 初始化SQL（含测试数据）
+└── docs/                       # 文档
+    ├── QUICKSTART.md           # 快速开始
+    ├── ARCHITECTURE.md         # 架构文档
+    ├── API_TEST.md             # API测试
+    └── DEPLOY.md               # 部署文档
 ```
 
-### 2. 时长核销流程
+## 🎨 界面预览
 
-```
-1. 活动结束后，管理员核销时长
-2. 更新报名记录状态 → vol_registration.hours_confirmed = 1
-3. 调用user-service更新用户累计时长
-4. 志愿者在个人中心查看时长累计
-```
+### 登录页面
+- ✨ 渐变背景 + 动态浮动元素
+- 🔐 现代化输入框设计
+- ⚡ 快速登录标签（点击即填充）
+- 📱 完全响应式布局
 
-### 3. AI智能生成流程
+### 首页
+- 📊 数据统计卡片（4个指标）
+- 🎴 活动卡片网格（悬浮效果）
+- ✨ 流畅的动画过渡
+- 📱 移动端自适应（2列 → 1列）
 
-```
-1. 管理员输入关键词（地点、类型、关键词）
-2. 构建Prompt调用AI API
-3. 返回生成的活动文案
-4. 管理员编辑并创建活动
-```
+### 移动端
+- 📱 抽屉式侧边栏导航
+- 🎯 触摸友好的按钮
+- 📐 灵活的响应式网格
+- 🔄 流畅的动画效果
 
-## 防超卖设计
+## 🔧 配置说明
 
-使用Redis原子操作保证高并发下的报名安全：
-
-```java
-// 1. 活动创建时初始化库存
-redisTemplate.opsForValue().set("activity:stock:1", "50");
-
-// 2. 报名时原子递减
-Long stock = redisTemplate.opsForValue().decrement("activity:stock:1");
-
-// 3. 库存不足时回滚
-if (stock < 0) {
-    redisTemplate.opsForValue().increment("activity:stock:1");
-    throw new BusinessException("名额已满");
-}
+### 数据库配置
+修改各服务的 `application.properties`：
+```properties
+spring.datasource.url=jdbc:mysql://localhost:3306/volunteer_platform
+spring.datasource.username=root
+spring.datasource.password=123888
 ```
 
-## 安全机制
-
-### JWT鉴权流程
-
-```
-1. 用户登录成功 → 生成JWT Token
-2. 前端存储Token
-3. 每次请求携带Token → Authorization: Bearer {token}
-4. Gateway全局过滤器验证Token
-5. 解析Token获取userId、username、role
-6. 将用户信息写入请求头传递给下游服务
-7. 下游服务从请求头获取用户信息
+### Redis配置
+```properties
+spring.data.redis.host=localhost
+spring.data.redis.port=6379
 ```
 
-### 白名单配置
+### Nacos配置
+```properties
+spring.cloud.nacos.discovery.server-addr=127.0.0.1:8848
+```
 
-以下接口无需认证：
+### JWT配置
+```properties
+jwt.secret=volunteerPlatformSecretKey2024
+jwt.expiration=86400000
+```
+
+## 📊 功能模块
+
+### 志愿者功能
+- ✅ 浏览志愿活动列表
+- ✅ 查看活动详情
+- ✅ 在线报名参加
+- ✅ 查看个人报名记录
+- ✅ 查看累计志愿时长
+- ✅ 个人数据统计
+
+### 管理员功能
+- ✅ 发布志愿活动
+- ✅ AI智能生成活动描述
+- ✅ 活动状态管理
+- ✅ 志愿时长核销
+- ✅ 报名信息查看
+- ✅ 数据统计分析
+
+### 系统功能
+- ✅ JWT令牌认证
+- ✅ 角色权限控制
+- ✅ Redis防超卖机制
+- ✅ 服务注册发现
+- ✅ 负载均衡
+- ✅ 健康检查监控
+
+## 🐛 常见问题
+
+### 1. 服务无法注册到 Nacos
+- 检查 Nacos 是否启动：`http://localhost:8848/nacos`
+- 检查配置文件中的 Nacos 地址是否正确
+- 查看服务启动日志中的注册信息
+
+### 2. 登录提示 503 错误
+- 确认 user-service 已启动且注册到 Nacos
+- 确认 gateway-service 已添加 LoadBalancer 依赖
+- 在 Nacos 控制台查看服务列表
+- 重启 gateway-service
+
+### 3. 前端无法访问后端
+- 检查 Vite 代理配置（vite.config.js）
+- 确认 gateway 运行在 9000 端口
+- 检查浏览器控制台的网络请求
+- 查看 CORS 配置是否正确
+
+### 4. MyBatis-Plus 启动报错
+- 必须使用 `mybatis-plus-spring-boot3-starter` 而非 `mybatis-plus-boot-starter`
+- 版本使用 3.5.9
+- common 模块需配置 `skip repackage`
+
+### 5. Gateway CORS 错误
+- 使用 `allowed-origin-patterns` 而非 `allowed-origins`
+- 配置 `allow-credentials=true`
+
+## 📝 开发规范
+
+### 后端规范
+- 统一返回 `Result<T>` 格式
+- 使用 JWT 进行身份验证
+- 异常统一处理
+- 日志规范记录
+- RESTful API 设计
+
+### 前端规范
+- 组件化开发
+- 响应式布局（支持手机/平板/桌面）
+- 统一的样式规范（渐变主题色）
+- API 请求统一封装
+- 路由守卫鉴权
+
+### 响应式断点
+```css
+手机: < 480px
+平板: 480px - 768px  
+桌面: 768px - 1024px
+大屏: > 1024px
+```
+
+## 🔒 安全机制
+
+### JWT认证流程
+```
+1. 用户登录 → 生成JWT Token
+2. 前端存储Token（localStorage）
+3. 每次请求携带Token（Authorization: Bearer {token}）
+4. Gateway验证Token
+5. 解析用户信息注入请求头
+6. 下游服务获取用户信息
+```
+
+### 白名单接口
 - `/user/login` - 登录
 - `/user/register` - 注册
 - `/activity/list` - 活动列表
 
-## 监控指标
+## 🎯 核心业务流程
 
-访问 http://localhost:9100 查看：
-
-- 服务健康状态
-- JVM内存使用
-- 线程状态
-- HTTP请求追踪
-- 日志实时查看
-
-## 扩展功能
-
-### 1. CI/CD集成
-
-项目支持Jenkins自动化部署：
-
-```groovy
-pipeline {
-    agent any
-    stages {
-        stage('Pull') {
-            steps {
-                git 'https://github.com/your-repo/volunteer-platform.git'
-            }
-        }
-        stage('Build') {
-            steps {
-                sh 'mvn clean package -DskipTests'
-            }
-        }
-        stage('Deploy') {
-            steps {
-                sh './deploy.sh'
-            }
-        }
-    }
-}
+### 活动报名流程（防超卖）
+```
+1. 管理员创建活动 → vol_activity表
+2. 初始化Redis库存 → activity:stock:{id}
+3. 志愿者浏览活动列表
+4. 点击报名 → Redis原子减库存
+5. 库存充足 → 写入vol_registration表
+6. 更新活动当前人数
 ```
 
-### 2. 数据统计大屏
-
-可扩展开发数据看板功能：
-- 累计志愿总时长
-- 活动类型分布
-- 参与度排行榜
-- 月度趋势图表
-
-## 常见问题
-
-### 1. Nacos注册失败
-- 检查Nacos是否启动
-- 确认配置文件中的server-addr正确
-- 检查网络连接
-
-### 2. Redis连接失败
-- 确认Redis服务已启动
-- 检查端口是否被占用
-- 验证密码配置
-
-### 3. 数据库连接失败
-- 检查MySQL服务状态
-- 确认数据库已创建
-- 验证用户名密码
-
-### 4. 网关转发失败
-- 确认下游服务已注册到Nacos
-- 检查路由配置
-- 查看网关日志
-
-## 项目结构
-
+### 时长核销流程
 ```
-cloud-demo/
-├── database/                   # 数据库脚本
-│   └── init.sql
-├── services/
-│   ├── common/                # 公共模块
-│   │   └── src/main/java/org/example/common/
-│   │       ├── result/        # 统一返回结果
-│   │       ├── util/          # 工具类（JWT）
-│   │       ├── exception/     # 异常定义
-│   │       └── constant/      # 常量定义
-│   ├── gateway-service/       # 网关服务
-│   │   └── src/main/java/org/example/
-│   │       ├── filter/        # 全局过滤器
-│   │       └── config/        # 配置类
-│   ├── user-service/          # 用户服务
-│   │   └── src/main/java/org/example/
-│   │       ├── entity/        # 实体类
-│   │       ├── dto/           # 请求DTO
-│   │       ├── vo/            # 返回VO
-│   │       ├── mapper/        # MyBatis Mapper
-│   │       ├── service/       # 业务逻辑
-│   │       └── controller/    # 控制器
-│   ├── activity-service/      # 活动服务
-│   │   └── src/main/java/org/example/
-│   │       ├── entity/        # 实体类
-│   │       ├── dto/           # 请求DTO
-│   │       ├── vo/            # 返回VO
-│   │       ├── mapper/        # MyBatis Mapper
-│   │       ├── service/       # 业务逻辑
-│   │       ├── feign/         # Feign客户端
-│   │       └── controller/    # 控制器
-│   └── monitor-service/       # 监控服务
-└── pom.xml                    # 父POM
+1. 活动结束
+2. 管理员核销时长
+3. 更新报名记录 → hours_confirmed=1
+4. Feign调用user-service更新总时长
+5. 志愿者查看累计时长
 ```
 
-## 贡献指南
+## 📚 相关文档
 
-欢迎提交Issue和Pull Request！
+- [快速开始指南](QUICKSTART.md)
+- [系统架构文档](ARCHITECTURE.md)
+- [API测试文档](API_TEST.md)
+- [部署指南](DEPLOY.md)
+- [目录结构说明](DIRECTORY_STRUCTURE.md)
+- [项目检查清单](CHECKLIST.md)
 
-## 许可证
+## 🤝 贡献指南
 
-MIT License
+欢迎提交 Issue 和 Pull Request！
 
-## 联系方式
+1. Fork 本项目
+2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
+3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
+4. 推送到分支 (`git push origin feature/AmazingFeature`)
+5. 开启 Pull Request
 
-如有问题请提交Issue或联系项目维护者。
+## 📄 许可证
+
+本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
+
+## 📮 联系方式
+
+如有问题或建议，欢迎通过 Issue 反馈。
+
+## 🌟 致谢
+
+感谢所有贡献者和开源社区的支持！
+
+---
+
+⭐ 如果这个项目对你有帮助，请给个 Star！

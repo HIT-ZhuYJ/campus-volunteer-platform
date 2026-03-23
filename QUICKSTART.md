@@ -1,40 +1,65 @@
-# 快速启动指南 ⚡
+# 🚀 快速开始指南
 
-> 5分钟快速启动校园志愿服务管理平台
+本指南将帮助你在 **10 分钟内** 快速启动校园志愿服务管理平台。
 
-## 前置检查清单
+## 📋 前置检查清单
 
-在开始之前，请确保已安装：
+在开始之前，请确保已安装以下软件：
 
-- [ ] JDK 17
-- [ ] Maven 3.8+
-- [ ] MySQL 8.0
-- [ ] Redis
-- [ ] Nacos 2.x
+- ✅ JDK 17+
+- ✅ Maven 3.6+
+- ✅ MySQL 8.0+
+- ✅ Redis 5.0+
+- ✅ Nacos 2.x
+- ✅ Node.js 16+ (前端)
 
-## 快速启动步骤
+## 🎯 快速启动步骤
 
-### 第1步：启动基础设施 (3分钟)
+### 步骤 1：启动 MySQL (2分钟)
 
-#### 1.1 启动MySQL
+1. 启动 MySQL 服务
+
+2. 导入数据库
 ```bash
-# 确保MySQL服务正在运行
-# Windows: 服务管理器中启动MySQL
-# Linux: sudo systemctl start mysql
+# 方式1：命令行导入
+mysql -u root -p < database/init.sql
+
+# 方式2：MySQL Workbench
+# 打开 database/init.sql 文件执行
 ```
 
-#### 1.2 启动Redis
+3. 验证数据库
+```sql
+USE volunteer_platform;
+SHOW TABLES;
+-- 应该看到: sys_user, vol_activity, vol_registration
+```
+
+**注意**：默认密码配置为 `123888`，如需修改请编辑各服务的 `application.properties`
+
+### 步骤 2：启动 Redis (1分钟)
+
 ```bash
 # Windows
-redis-server.exe
+redis-server.exe redis.windows.conf
 
-# Linux
-sudo systemctl start redis
-# 或
+# Linux/Mac
 redis-server
+
+# 验证
+redis-cli ping
+# 应该返回: PONG
 ```
 
-#### 1.3 启动Nacos
+### 步骤 3：启动 Nacos (2分钟)
+
+1. 下载 Nacos（如果还没有）
+```bash
+# https://github.com/alibaba/nacos/releases
+# 下载 nacos-server-2.x.x.zip
+```
+
+2. 启动 Nacos
 ```bash
 # Windows
 cd nacos/bin
@@ -45,255 +70,301 @@ cd nacos/bin
 sh startup.sh -m standalone
 ```
 
-**验证**: 访问 http://localhost:8848/nacos (用户名密码: nacos/nacos)
+3. 验证 Nacos
+- 访问：http://localhost:8848/nacos
+- 登录账号：`nacos`
+- 登录密码：`nacos`
 
-### 第2步：初始化数据库 (1分钟)
-
-```bash
-# 方式一：命令行执行
-mysql -u root -p < database/init.sql
-
-# 方式二：MySQL客户端执行
-# 打开MySQL Workbench或其他工具
-# 打开并执行 database/init.sql
-```
-
-**验证**:
-```sql
-USE volunteer_platform;
-SHOW TABLES;
--- 应该看到3个表: sys_user, vol_activity, vol_registration
-```
-
-### 第3步：编译项目 (1分钟)
+### 步骤 4：编译后端项目 (2分钟)
 
 ```bash
-cd D:\clouddemo\cloud-demo
+cd services
 mvn clean install -DskipTests
 ```
 
-### 第4步：启动服务 (1分钟)
+**常见问题**：
+- 如果编译失败，检查 Maven 配置和网络
+- 确保使用 JDK 17
+- 确保 `common` 模块配置了 `skip repackage`
 
-#### 方式A：一键启动（推荐）
+### 步骤 5：启动后端服务 (3分钟)
 
+**重要**：按照以下顺序启动服务
+
+#### 5.1 启动 user-service (8100)
+
+在 IDEA 中：
+- 找到 `services/user-service/src/main/java/org/example/UserApplication.java`
+- 右键 → Run 'UserApplication'
+
+或命令行：
 ```bash
-# Windows
-start-all.bat
-
-# Linux/Mac
-chmod +x start-all.sh
-./start-all.sh
-```
-
-#### 方式B：手动启动
-
-打开4个命令行窗口，分别执行：
-
-```bash
-# 窗口1 - 监控服务
-cd services/monitor-service
-mvn spring-boot:run
-
-# 窗口2 - 网关服务
-cd services/gateway-service
-mvn spring-boot:run
-
-# 窗口3 - 用户服务
 cd services/user-service
 mvn spring-boot:run
+```
 
-# 窗口4 - 活动服务
+**验证**：看到日志 `nacos registry, DEFAULT_GROUP user-service 192.168.40.1:8100 register finished`
+
+#### 5.2 启动 activity-service (8200)
+
+在 IDEA 中：
+- 找到 `services/activity-service/src/main/java/org/example/ActivityApplication.java`
+- 右键 → Run 'ActivityApplication'
+
+或命令行：
+```bash
 cd services/activity-service
 mvn spring-boot:run
 ```
 
-### 第5步：验证服务 (30秒)
+**验证**：看到日志 `nacos registry, DEFAULT_GROUP activity-service ...`
 
-#### 5.1 检查Nacos服务注册
-访问: http://localhost:8848/nacos
+#### 5.3 启动 gateway-service (9000)
 
-在"服务管理 -> 服务列表"中应该看到4个服务：
-- gateway-service
-- user-service  
-- activity-service
-- monitor-service
+在 IDEA 中：
+- 找到 `services/gateway-service/src/main/java/org/example/GatewayApplication.java`
+- 右键 → Run 'GatewayApplication'
 
-#### 5.2 检查监控中心
-访问: http://localhost:9100
-
-应该看到所有服务的健康状态为UP。
-
-#### 5.3 测试API接口
-
-**测试登录接口**:
+或命令行：
 ```bash
-curl -X POST http://localhost:9000/user/login \
-  -H "Content-Type: application/json" \
-  -d "{\"username\":\"admin\",\"password\":\"password123\"}"
-```
-
-**预期返回**:
-```json
-{
-  "code": 200,
-  "message": "登录成功",
-  "data": {
-    "token": "eyJhbGciOiJIUzI1NiJ9...",
-    "userInfo": {
-      "id": 1,
-      "username": "admin",
-      "realName": "管理员",
-      "role": "ADMIN"
-    }
-  }
-}
-```
-
-**测试活动列表**:
-```bash
-curl http://localhost:9000/activity/list?page=1&size=10
-```
-
-## 🎉 恭喜！系统启动成功
-
-现在你可以：
-
-1. **使用Postman/Apifox测试API** - 参考 `API_TEST.md`
-2. **查看监控面板** - http://localhost:9100
-3. **开发前端页面** - 对接网关地址 http://localhost:9000
-4. **查看Nacos控制台** - http://localhost:8848/nacos
-
-## 测试账号
-
-| 用户名 | 密码 | 角色 | 功能 |
-|--------|------|------|------|
-| admin | password123 | 管理员 | 创建活动、核销时长 |
-| student01 | password123 | 志愿者 | 报名活动、查看记录 |
-| student02 | password123 | 志愿者 | 报名活动、查看记录 |
-
-## 常见问题快速解决
-
-### ❌ 服务启动失败
-
-**现象**: 服务启动报错
-
-**解决方法**:
-```bash
-# 1. 检查端口占用
-netstat -ano | findstr "9000"  # Windows
-lsof -i:9000                    # Linux
-
-# 2. 检查Nacos是否启动
-curl http://localhost:8848/nacos
-
-# 3. 查看日志
-tail -f logs/user-service.log
-```
-
-### ❌ 数据库连接失败
-
-**现象**: `Could not get JDBC Connection`
-
-**解决方法**:
-```bash
-# 1. 检查MySQL服务
-mysql -u root -p -e "SELECT 1"
-
-# 2. 检查数据库是否创建
-mysql -u root -p -e "SHOW DATABASES LIKE 'volunteer%'"
-
-# 3. 修改配置文件中的密码
-# services/user-service/src/main/resources/application.properties
-# spring.datasource.password=你的密码
-```
-
-### ❌ Redis连接失败
-
-**现象**: `Cannot get Jedis connection`
-
-**解决方法**:
-```bash
-# 检查Redis服务
-redis-cli ping
-# 应该返回: PONG
-```
-
-### ❌ 服务未注册到Nacos
-
-**现象**: Nacos控制台看不到服务
-
-**解决方法**:
-```bash
-# 1. 确认Nacos地址配置正确
-# application.properties中:
-# spring.cloud.nacos.discovery.server-addr=127.0.0.1:8848
-
-# 2. 检查网络连接
-curl http://localhost:8848/nacos/v1/ns/instance/list?serviceName=user-service
-
-# 3. 查看服务日志
-```
-
-## 下一步
-
-### 📖 深入学习
-- 阅读 `README.md` 了解项目详情
-- 阅读 `ARCHITECTURE.md` 理解架构设计
-- 阅读 `API_TEST.md` 学习接口测试
-
-### 🔧 开发调试
-- 使用IDEA/Eclipse导入项目
-- 配置断点调试
-- 查看SQL执行日志
-
-### 🚀 功能扩展
-- 开发前端界面
-- 添加更多业务功能
-- 集成更多中间件
-
-### 📊 性能测试
-- 使用JMeter测试并发
-- 优化慢查询SQL
-- 调整JVM参数
-
-## 💡 开发技巧
-
-### 修改代码后重启服务
-```bash
-# 1. 停止服务 (Ctrl+C)
-# 2. 重新启动
+cd services/gateway-service
 mvn spring-boot:run
 ```
 
-### 查看实时日志
-```bash
-# Windows (PowerShell)
-Get-Content logs/user-service.log -Wait -Tail 50
+**验证**：看到日志 `Netty started on port 9000`
 
-# Linux
-tail -f logs/user-service.log
+#### 5.4 启动 monitor-service (9100，可选)
+
+```bash
+cd services/monitor-service
+mvn spring-boot:run
 ```
 
-### 快速清理重建
+### 步骤 6：启动前端 (2分钟)
+
 ```bash
-# 清理编译缓存
-mvn clean
-
-# 重新编译
-mvn install -DskipTests
-
-# 重启服务
+cd frontend
+npm install
+npm run dev
 ```
 
-## 📞 获取帮助
+**验证**：看到输出
+```
+VITE v5.4.21  ready in 323 ms
+➜  Local:   http://localhost:3000/
+```
 
-遇到问题？
+## ✅ 验证安装
 
-1. 检查日志文件 `logs/*.log`
-2. 查看 `DEPLOY.md` 详细部署指南
-3. 搜索错误信息
-4. 提交Issue描述问题
+### 1. 检查 Nacos 服务注册
+
+访问：http://localhost:8848/nacos
+
+在 "服务管理" → "服务列表" 中应该看到：
+- ✅ `user-service`
+- ✅ `activity-service`
+- ✅ `gateway-service`
+- ✅ `monitor-service`（如果启动了）
+
+### 2. 测试后端 API
+
+```bash
+# 测试登录接口
+curl -X POST http://localhost:9000/user/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"password123"}'
+
+# 应该返回 Token
+```
+
+### 3. 访问前端
+
+打开浏览器访问：http://localhost:3000
+
+你应该看到：
+- 🎨 美观的登录页面
+- 🌈 渐变背景 + 动态浮动元素
+- ⚡ 三个快速登录标签
+
+## 🎉 开始使用
+
+### 快速登录测试
+
+点击登录页面的快速登录标签即可自动填充账号密码：
+
+| 标签 | 用户名 | 密码 | 角色 |
+|------|--------|------|------|
+| 🔴 管理员 | admin | password123 | 管理员 |
+| 🟢 学生01 | student01 | password123 | 志愿者（12.5h） |
+| 🟡 学生02 | student02 | password123 | 志愿者（8.0h） |
+
+### 功能测试路径
+
+#### 志愿者功能
+1. 使用 `student01` 登录
+2. 查看首页数据统计
+3. 浏览志愿活动列表
+4. 查看活动详情并报名
+5. 在"个人中心"查看报名记录
+
+#### 管理员功能
+1. 使用 `admin` 登录
+2. 进入"管理后台"
+3. 发布新的志愿活动
+4. （可选）使用AI生成活动描述
+5. 核销志愿者的服务时长
+
+## 🐛 常见问题排查
+
+### 问题 1：服务启动失败
+
+**现象**：服务启动报错或无法访问
+
+**排查步骤**：
+1. 检查端口是否被占用
+```bash
+# Windows
+netstat -ano | findstr :8100
+netstat -ano | findstr :9000
+
+# Linux/Mac
+lsof -i :8100
+lsof -i :9000
+```
+
+2. 检查日志中的错误信息
+3. 确认 MySQL、Redis、Nacos 都已启动
+
+### 问题 2：服务无法注册到 Nacos
+
+**现象**：Nacos 控制台看不到服务
+
+**解决方案**：
+1. 检查 Nacos 是否启动：访问 http://localhost:8848/nacos
+2. 检查服务配置文件中的 Nacos 地址
+```properties
+spring.cloud.nacos.discovery.server-addr=127.0.0.1:8848
+```
+3. 查看服务启动日志，确认注册信息
+4. 重启服务
+
+### 问题 3：前端登录 503 错误
+
+**现象**：点击登录后提示 503 Service Unavailable
+
+**解决方案**：
+1. 确认 `user-service` 已启动
+2. 确认 `gateway-service` 已启动
+3. 在 Nacos 控制台查看服务是否注册成功
+4. 检查 `gateway-service` 是否有 `spring-cloud-starter-loadbalancer` 依赖
+5. 按顺序重启：user-service → gateway-service
+
+### 问题 4：CORS 跨域错误
+
+**现象**：浏览器控制台提示 CORS 错误
+
+**解决方案**：
+检查 `gateway-service/application.properties`：
+```properties
+spring.cloud.gateway.globalcors.cors-configurations.[/**].allowed-origin-patterns=*
+spring.cloud.gateway.globalcors.cors-configurations.[/**].allow-credentials=true
+```
+
+**注意**：使用 `allowed-origin-patterns` 而非 `allowed-origins`
+
+### 问题 5：MyBatis-Plus 启动报错
+
+**现象**：`BeanDefinitionStoreException` 或类似错误
+
+**解决方案**：
+1. 确认使用 Spring Boot 3 专版：
+```xml
+<dependency>
+    <groupId>com.baomidou</groupId>
+    <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+    <version>3.5.9</version>
+</dependency>
+```
+
+2. 确认 `common` 模块的 `pom.xml` 中配置了：
+```xml
+<build>
+    <plugins>
+        <plugin>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-maven-plugin</artifactId>
+            <configuration>
+                <skip>true</skip>
+            </configuration>
+        </plugin>
+    </plugins>
+</build>
+```
+
+3. 清理并重新编译：
+```bash
+cd services
+mvn clean install -DskipTests
+```
+
+### 问题 6：前端无法加载
+
+**现象**：npm run dev 报错或页面空白
+
+**解决方案**：
+1. 删除 `node_modules` 和 `package-lock.json`
+```bash
+rm -rf node_modules package-lock.json
+npm install
+```
+
+2. 检查 Node.js 版本
+```bash
+node -v  # 应该是 16+
+```
+
+3. 检查端口 3000 是否被占用
+
+## 📊 服务端口一览
+
+| 服务 | 端口 | 访问地址 | 说明 |
+|------|------|---------|------|
+| Nacos | 8848 | http://localhost:8848/nacos | 服务注册中心 |
+| user-service | 8100 | - | 用户服务 |
+| activity-service | 8200 | - | 活动服务 |
+| gateway-service | 9000 | http://localhost:9000 | API网关 |
+| monitor-service | 9100 | http://localhost:9100 | 监控中心 |
+| frontend | 3000 | http://localhost:3000 | 前端页面 |
+
+## 🎯 下一步
+
+- 📖 阅读 [系统架构文档](ARCHITECTURE.md) 了解技术架构
+- 🔌 查看 [API测试文档](API_TEST.md) 测试各个接口
+- 🚀 查看 [部署文档](DEPLOY.md) 部署到生产环境
+
+## 💡 提示
+
+1. **开发环境**：使用 IDEA 的 Run Dashboard 可以方便地管理多个服务
+2. **调试技巧**：查看各服务的控制台日志排查问题
+3. **响应式测试**：按 F12 → 设备模拟器测试移动端效果
+4. **数据库工具**：推荐使用 Navicat 或 MySQL Workbench
+5. **Redis工具**：推荐使用 RedisInsight 或 Another Redis Desktop Manager
+
+## 📝 检查清单
+
+启动完成后，请确认：
+
+- [ ] MySQL 已启动且数据库已导入
+- [ ] Redis 已启动
+- [ ] Nacos 已启动并可访问
+- [ ] 所有后端服务已注册到 Nacos
+- [ ] 前端已启动并可访问
+- [ ] 可以成功登录系统
+- [ ] 可以浏览活动列表
+- [ ] （管理员）可以发布活动
+
+全部完成？恭喜你！🎉 现在可以开始探索系统的各项功能了！
 
 ---
 
-**祝你使用愉快！** 🎊
+💬 遇到问题？查看 [常见问题](README.md#常见问题) 或提交 Issue。
