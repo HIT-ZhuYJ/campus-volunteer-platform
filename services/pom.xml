@@ -10,8 +10,11 @@
     </parent>
     <packaging>pom</packaging>
     <modules>
-        <module>service-product</module>
-        <module>service-order</module>
+        <module>common</module>
+        <module>gateway-service</module>
+        <module>user-service</module>
+        <module>activity-service</module>
+        <module>monitor-service</module>
     </modules>
     <artifactId>services</artifactId>
 
@@ -20,15 +23,5 @@
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
-    <dependencies>
-        <dependency>
-            <groupId>com.alibaba.cloud</groupId>
-            <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-starter-openfeign</artifactId>
-        </dependency>
-    </dependencies>
 
 </project>
