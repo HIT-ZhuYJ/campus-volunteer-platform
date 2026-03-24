@@ -77,8 +77,14 @@ sh startup.sh -m standalone
 
 ### 步骤 4：编译后端项目 (2分钟)
 
+在 **`services` 目录**下执行（与 `services/pom.xml` 一致）：
 ```bash
 cd services
+mvn clean install -DskipTests
+```
+
+或在**仓库根目录**执行（根 `pom.xml` 聚合构建 `services`）：
+```bash
 mvn clean install -DskipTests
 ```
 
@@ -118,6 +124,8 @@ mvn spring-boot:run
 ```
 
 **验证**：看到日志 `nacos registry, DEFAULT_GROUP activity-service ...`
+
+**（可选）AI 生成活动描述**：需调用 DeepSeek 时，先设置环境变量 **`DEEPSEEK_API_KEY`** 再启动本服务；未设置则使用内置模板文案。详见 `README.md` →「AI / DeepSeek 配置」。
 
 #### 5.3 启动 gateway-service (9000)
 
@@ -211,7 +219,7 @@ curl -X POST http://localhost:9000/user/login \
 1. 使用 `admin` 登录
 2. 进入"管理后台"
 3. 发布新的志愿活动
-4. （可选）使用AI生成活动描述
+4. （可选）使用 AI 生成活动描述（需配置 **`DEEPSEEK_API_KEY`**，见 README）
 5. 核销志愿者的服务时长
 
 ## 🐛 常见问题排查
@@ -235,18 +243,21 @@ lsof -i :9000
 2. 检查日志中的错误信息
 3. 确认 MySQL、Redis、Nacos 都已启动
 
-### 问题 2：服务无法注册到 Nacos
+### 问题 2：服务无法注册到 Nacos / 启动报 `Client not connected` / `serverAddr='null'`
 
-**现象**：Nacos 控制台看不到服务
+**现象**：日志出现 `nacos registry ... register failed`、`NacosException: Client not connected`、`serverAddr='null'` 等，应用直接退出。
 
 **解决方案**：
-1. 检查 Nacos 是否启动：访问 http://localhost:8848/nacos
-2. 检查服务配置文件中的 Nacos 地址
+1. **先启动 Nacos**，再启动各微服务（Nacos 2.x 使用 **8848** HTTP 与 **9848** 等 gRPC 端口，防火墙需放行）。
+2. 确认配置中同时包含（本仓库已默认写好）：
 ```properties
+spring.cloud.nacos.server-addr=127.0.0.1:8848
 spring.cloud.nacos.discovery.server-addr=127.0.0.1:8848
+spring.cloud.nacos.discovery.fail-fast=false
 ```
-3. 查看服务启动日志，确认注册信息
-4. 重启服务
+   `fail-fast=false` 表示 Nacos 暂未连上时**不阻塞** Tomcat 启动，连通后会自动注册；若需启动即强校验注册成功，可改回 `true`。
+3. 若日志里仍为 **`serverAddr=null`**：检查系统/IDE 是否设置了空的 Nacos 环境变量（例如 `SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR`、`SPRING_CLOUD_NACOS_SERVER_ADDR`），**空字符串会覆盖** `application.properties`，请删除或改为 `127.0.0.1:8848`。
+4. 访问 http://localhost:8848/nacos 确认控制台可用后，再重启对应服务。
 
 ### 问题 3：前端登录 503 错误
 
