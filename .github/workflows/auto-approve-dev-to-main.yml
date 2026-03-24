@@ -1,7 +1,13 @@
 # 当 PR 为 dev → main 时，在「可合并、无冲突」的前提下自动 Approve。
-# - mergeable 为 false / mergeable_state 为 dirty 等：不批准（含与 main 存在冲突时）。
-# - GitHub 计算 mergeable 可能延迟，脚本内会短暂轮询后再判断。
-# - 不会替代「合并」；分支保护、Code Owner 等限制见仓库设置。
+#
+# 若报错「GitHub Actions is not permitted to approve pull requests」：
+# 1) 仓库 Settings → Actions → General → Workflow permissions：
+#    勾选「Read and write」并勾选「Allow GitHub Actions to create and approve pull requests」后保存。
+# 2) 若组织禁止上述项：在仓库 Secrets 添加 GH_PR_APPROVE_TOKEN（fine-grained 或 classic PAT，
+#    需能对本仓库读 PR 并提交 review），本工作流会优先使用该令牌。
+#
+# - mergeable 为 false / mergeable_state 为 dirty：不批准（含冲突）。
+# - 不会替代「合并」；分支保护、Code Owner 等见仓库设置。
 name: Auto-approve dev → main PRs
 
 on:
@@ -22,9 +28,13 @@ jobs:
     steps:
       - uses: actions/github-script@v7
         with:
+          github-token: ${{ secrets.GH_PR_APPROVE_TOKEN || github.token }}
           script: |
             const pr = context.payload.pull_request;
             const { owner, repo } = context.repo;
+
+            const { data: auth } = await github.rest.users.getAuthenticated();
+            const approverLogin = auth.login;
 
             const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
             let detail = await github.rest.pulls.get({
@@ -54,15 +64,14 @@ jobs:
               pull_number: pr.number,
               per_page: 100
             });
-            const botLogin = 'github-actions[bot]';
-            const botReviews = reviews
-              .filter((r) => r.user?.login === botLogin && r.submitted_at)
+            const myReviews = reviews
+              .filter((r) => r.user?.login === approverLogin && r.submitted_at)
               .sort(
                 (a, b) =>
                   new Date(a.submitted_at).getTime() -
                   new Date(b.submitted_at).getTime()
               );
-            const latest = botReviews[botReviews.length - 1];
+            const latest = myReviews[myReviews.length - 1];
             if (
               latest?.state === 'APPROVED' &&
               latest.commit_id === pr.head.sha
