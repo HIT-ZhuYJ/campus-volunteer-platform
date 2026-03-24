@@ -243,18 +243,21 @@ lsof -i :9000
 2. 检查日志中的错误信息
 3. 确认 MySQL、Redis、Nacos 都已启动
 
-### 问题 2：服务无法注册到 Nacos
+### 问题 2：服务无法注册到 Nacos / 启动报 `Client not connected` / `serverAddr='null'`
 
-**现象**：Nacos 控制台看不到服务
+**现象**：日志出现 `nacos registry ... register failed`、`NacosException: Client not connected`、`serverAddr='null'` 等，应用直接退出。
 
 **解决方案**：
-1. 检查 Nacos 是否启动：访问 http://localhost:8848/nacos
-2. 检查服务配置文件中的 Nacos 地址
+1. **先启动 Nacos**，再启动各微服务（Nacos 2.x 使用 **8848** HTTP 与 **9848** 等 gRPC 端口，防火墙需放行）。
+2. 确认配置中同时包含（本仓库已默认写好）：
 ```properties
+spring.cloud.nacos.server-addr=127.0.0.1:8848
 spring.cloud.nacos.discovery.server-addr=127.0.0.1:8848
+spring.cloud.nacos.discovery.fail-fast=false
 ```
-3. 查看服务启动日志，确认注册信息
-4. 重启服务
+   `fail-fast=false` 表示 Nacos 暂未连上时**不阻塞** Tomcat 启动，连通后会自动注册；若需启动即强校验注册成功，可改回 `true`。
+3. 若日志里仍为 **`serverAddr=null`**：检查系统/IDE 是否设置了空的 Nacos 环境变量（例如 `SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR`、`SPRING_CLOUD_NACOS_SERVER_ADDR`），**空字符串会覆盖** `application.properties`，请删除或改为 `127.0.0.1:8848`。
+4. 访问 http://localhost:8848/nacos 确认控制台可用后，再重启对应服务。
 
 ### 问题 3：前端登录 503 错误
 
