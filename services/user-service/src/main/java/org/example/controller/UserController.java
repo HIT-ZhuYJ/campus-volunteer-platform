@@ -8,6 +8,8 @@ import org.example.vo.LoginResponse;
 import org.example.vo.UserInfo;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/user")
 public class UserController {
@@ -34,5 +36,18 @@ public class UserController {
     public Result<UserInfo> getUserInfo(@RequestHeader("X-User-Id") Long userId) {
         UserInfo userInfo = userService.getUserInfo(userId);
         return Result.success(userInfo);
+    }
+
+    /**
+     * 管理员：查询所有志愿者及其累计时长，支持按姓名/学号/用户名关键字筛选。
+     */
+    @GetMapping("/admin/hours")
+    public Result<List<UserInfo>> listVolunteerHours(
+            @RequestParam(required = false) String keyword,
+            @RequestHeader("X-User-Role") String role) {
+        if (!"ADMIN".equals(role)) {
+            return Result.forbidden("只有管理员才能查看");
+        }
+        return Result.success(userService.listVolunteerHours(keyword));
     }
 }

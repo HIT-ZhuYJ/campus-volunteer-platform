@@ -11,12 +11,12 @@ cloud-demo/                                    # 项目根目录
 │   └── Spring Cloud Alibaba 2023.0.3.2
 │
 ├── database/                                  # 数据库脚本目录
-│   └── init.sql                              # 唯一全量初始化脚本（约 140+ 行）
+│   └── init.sql                              # 唯一全量初始化脚本（约 446 行）
 │       ├── DROP/CREATE volunteer_platform
-│       ├── sys_user（用户表）
-│       ├── vol_activity（活动表，含 registration_start_time / registration_deadline）
-│       ├── vol_registration（报名表）
-│       └── v_activity_statistics（统计视图）
+│       ├── sys_user（用户表，11 条测试数据）
+│       ├── vol_activity（活动表，20 条，含 registration_start_time/registration_deadline/idx_end_time 索引）
+│       ├── vol_registration（报名表，54 条，含 confirm_time 字段）
+│       └── v_activity_statistics（统计视图，BI 用途）
 │
 ├── logs/                                      # 日志目录
 │   ├── monitor-service.log
@@ -110,13 +110,14 @@ cloud-demo/                                    # 项目根目录
 │   │       │   │   └── AIGenerateRequest.java      # AI生成请求DTO
 │   │       │   ├── vo/
 │   │       │   │   ├── ActivityVO.java        # 活动VO
-│   │       │   │   └── RegistrationVO.java    # 报名VO
+│   │       │   │   └── RegistrationVO.java    # 报名VO（含 confirmTime 字段）
 │   │       │   ├── mapper/
 │   │       │   │   ├── ActivityMapper.java    # 活动Mapper
 │   │       │   │   └── RegistrationMapper.java # 报名Mapper
 │   │       │   ├── service/
-│   │       │   │   ├── ActivityService.java   # 核心业务逻辑
-│   │       │   │   └── AIService.java         # AI服务
+│   │       │   │   ├── ActivityService.java          # 核心业务逻辑（含 COMPLETED 过滤、招募截止排序）
+│   │       │   │   ├── ActivityScheduleValidator.java # 时间合法性校验
+│   │       │   │   └── AIService.java                # AI服务
 │   │       │   ├── feign/
 │   │       │   │   └── UserServiceClient.java # Feign客户端
 │   │       │   ├── controller/
@@ -143,6 +144,29 @@ cloud-demo/                                    # 项目根目录
 │   │           └── application.properties      # 配置文件
 │   │               ├── server.port=9100
 │   │               └── Spring Boot Admin配置
+│
+├── frontend/                                  # 前端项目
+│   └── src/
+│       ├── views/
+│       │   ├── Login.vue                     # 登录（快速登录标签）
+│       │   ├── Register.vue                  # 注册（卡片式美化）
+│       │   ├── Home.vue                      # 首页（仅展示招募中活动，已签到统计）
+│       │   ├── ActivityList.vue              # 活动列表（胶囊筛选，按截止时间升序）
+│       │   ├── ActivityDetail.vue            # 活动详情（Hero 横幅 + 双栏布局）
+│       │   ├── MyCenter.vue                  # 个人中心（渐变卡片，四维统计）
+│       │   └── admin/
+│       │       ├── AdminLayout.vue           # 管理后台布局
+│       │       ├── ActivityManage.vue        # 活动管理（结项/取消高亮行）
+│       │       ├── ActivityCreate.vue        # 发布活动（分组卡片表单）
+│       │       ├── ActivityCheckIn.vue       # 活动签到管理
+│       │       ├── VolunteerHours.vue        # 志愿时长统计
+│       │       └── HoursConfirm.vue          # 时长核销（仅已结束未结项活动）
+│       ├── utils/
+│       │   ├── activityPhase.js              # 活动阶段标签（含 COMPLETED 独立处理）
+│       │   └── recruitment.js               # 招募状态工具
+│       └── api/
+│           ├── activity.js                   # 活动相关 API
+│           └── user.js                       # 用户相关 API
 │
 ├── 📄 文档与 CI（仓库根目录）
 ├── README.md
@@ -201,11 +225,12 @@ cloud-demo/                                    # 项目根目录
 
 | 类型 | 数量 | 说明 |
 |------|------|------|
-| Java源文件 | 34 | services 下业务与公共代码 |
+| Java源文件 | 35 | services 下业务与公共代码（新增 ActivityScheduleValidator） |
 | POM文件 | 7 | 包括父POM |
 | 配置文件 | 5 | application.properties |
-| SQL脚本 | 1 | init.sql |
-| 文档文件 | 6 | Markdown文档 |
+| SQL脚本 | 1 | init.sql（446 行，含 11 用户/20 活动/54 报名） |
+| 前端 Vue 文件 | 14 | 含 ActivityCheckIn、VolunteerHours |
+| 文档文件 | 10 | Markdown文档 |
 | 启动脚本 | 2 | bat + sh |
 
 ## 代码行数统计（估算）

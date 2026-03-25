@@ -60,10 +60,22 @@ const routes = [
         meta: { title: '发布活动' }
       },
       {
+        path: 'checkin',
+        name: 'AdminCheckIn',
+        component: () => import('@/views/admin/ActivityCheckIn.vue'),
+        meta: { title: '活动签到' }
+      },
+      {
         path: 'confirm',
         name: 'AdminConfirm',
         component: () => import('@/views/admin/HoursConfirm.vue'),
         meta: { title: '时长核销' }
+      },
+      {
+        path: 'hours',
+        name: 'AdminHours',
+        component: () => import('@/views/admin/VolunteerHours.vue'),
+        meta: { title: '时长查询' }
       }
     ]
   }

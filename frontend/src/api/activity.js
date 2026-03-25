@@ -41,6 +41,31 @@ export const createActivity = (data) => {
   })
 }
 
+// 管理员更新活动（请求体同创建）
+export const updateActivity = (id, data) => {
+  return request({
+    url: `/activity/${id}`,
+    method: 'put',
+    data
+  })
+}
+
+// 管理员取消活动
+export const adminCancelActivity = (id) => {
+  return request({
+    url: `/activity/${id}/cancel`,
+    method: 'post'
+  })
+}
+
+// 管理员结项活动
+export const adminCompleteActivity = (id) => {
+  return request({
+    url: `/activity/${id}/complete`,
+    method: 'post'
+  })
+}
+
 // 报名活动
 export const registerActivity = (activityId) => {
   return request({
@@ -79,6 +104,30 @@ export const getActivityRegistrations = (activityId) => {
   return request({
     url: `/activity/${activityId}/registrations`,
     method: 'get'
+  })
+}
+
+// 管理员：已结束的活动（时长核销选活动）
+export const getEndedActivitiesForAdmin = () => {
+  return request({
+    url: '/activity/admin/endedActivities',
+    method: 'get'
+  })
+}
+
+// 管理员：尚未结束的活动（活动签到选活动）
+export const getCheckInActivitiesForAdmin = () => {
+  return request({
+    url: '/activity/admin/checkInActivities',
+    method: 'get'
+  })
+}
+
+// 管理员：为报名记录签到
+export const adminCheckInRegistration = (registrationId) => {
+  return request({
+    url: `/activity/admin/checkIn/${registrationId}`,
+    method: 'post'
   })
 }
 

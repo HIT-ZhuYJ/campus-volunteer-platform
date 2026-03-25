@@ -71,7 +71,7 @@ mysql -u root -p < database/init.sql
 # 默认密码: 123888
 ```
 
-**数据库脚本**：仅使用 **`database/init.sql`** 作为唯一入口，内含建库、三张业务表、统计视图与示例数据。`vol_activity` 包含 **`registration_start_time`（志愿招募开始）** 与 **`registration_deadline`（报名截止）**；示例数据中 **`current_participants`** 与有效报名流水条数一致。
+**数据库脚本**：仅使用 **`database/init.sql`** 作为唯一入口，内含建库、三张业务表、统计视图与示例数据。`vol_activity` 包含 **`registration_start_time`（志愿招募开始）** 与 **`registration_deadline`（报名截止）**；活动阶段（进行中/已结束等）**由当前时间与各时间字段动态计算**，`status` 字段仅存 `RECRUITING`/`COMPLETED`/`CANCELLED`；示例数据含 **11 个用户、20 个活动、54 条报名记录**，覆盖所有业务场景。
 
 #### 启动 Redis
 ```bash
@@ -128,13 +128,13 @@ npm run dev
 
 ### 4. 登录测试
 
-系统提供 **3 个测试账号**：
+系统提供 **11 个测试账号**，密码均为 `password123`：
 
-| 角色 | 用户名 | 密码 | 说明 |
-|------|--------|------|------|
-| 管理员 | `admin` | `password123` | 可发布活动、核销时长 |
-| 志愿者 | `student01` | `password123` | 张三，已有12.5小时 |
-| 志愿者 | `student02` | `password123` | 李四，已有8.0小时 |
+| 角色 | 用户名 | 说明 |
+|------|--------|------|
+| 管理员 | `admin` | 可发布/管理活动、签到、核销时长 |
+| 志愿者 | `student01`～`student06` | 已有不同程度的时长记录（5.5～11h）|
+| 志愿者 | `student07`～`student10` | 新用户，暂无核销记录 |
 
 💡 **提示**：登录页面有快速登录标签，点击即可自动填充账号密码！
 
@@ -277,12 +277,13 @@ ai.api.model=deepseek-chat
 - ✅ 个人数据统计
 
 ### 管理员功能
-- ✅ 发布志愿活动
-- ✅ AI智能生成活动描述
-- ✅ 活动状态管理
-- ✅ 志愿时长核销
-- ✅ 报名信息查看
-- ✅ 数据统计分析
+- ✅ 发布志愿活动（含时间合法性后端校验）
+- ✅ AI智能生成活动描述（DeepSeek，可选）
+- ✅ 活动列表管理（结项/取消，视觉高亮区分）
+- ✅ 活动签到管理（标记签到状态）
+- ✅ 志愿时长核销（仅已结束未结项活动可核销）
+- ✅ 核销时间记录（`confirmTime` 字段）
+- ✅ 报名信息查看与统计
 
 ### 系统功能
 - ✅ JWT令牌认证
@@ -380,11 +381,13 @@ ai.api.model=deepseek-chat
 
 ### 时长核销流程
 ```
-1. 活动结束
-2. 管理员核销时长
-3. 更新报名记录 → hours_confirmed=1
-4. Feign调用user-service更新总时长
-5. 志愿者查看累计时长
+1. 活动 end_time 已过（自动进入"已结束"阶段）
+2. 管理员在【时长核销】模块选择活动（已结束且未结项）
+3. 标记签到：check_in_status = 1
+4. 核销时长：hours_confirmed = 1，记录 confirm_time
+5. Feign调用user-service累加 total_volunteer_hours
+6. 管理员在【活动管理】将活动标记为"已结项"（COMPLETED）
+7. 志愿者在个人中心查看累计时长与足迹
 ```
 
 ## 📚 相关文档

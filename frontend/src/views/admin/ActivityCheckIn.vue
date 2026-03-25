@@ -2,8 +2,10 @@
   <div>
     <el-card>
       <template #header>
-        <h3>时长核销管理</h3>
-        <p class="header-desc">请选择<strong>已结束但尚未结项</strong>的活动，仅可对<strong>已签到</strong>且未核销的报名记录核销时长。核销完毕后请在活动管理中执行<strong>结项</strong>操作。</p>
+        <h3>活动签到</h3>
+        <p class="header-desc">
+          仅列出<strong>已开始且未结束</strong>（进行中）的活动；未开始或已结束的活动不会出现在此。活动结束后请至「时长核销」。
+        </p>
       </template>
 
       <div class="toolbar">
@@ -12,13 +14,13 @@
           v-model="selectedActivityId"
           filterable
           clearable
-          placeholder="请选择已结束且未结项的活动"
+          placeholder="请选择进行中的活动"
           style="width: min(520px, 100%)"
-          :loading="endedLoading"
+          :loading="activitiesLoading"
           @change="onActivityChange"
         >
           <el-option
-            v-for="a in endedActivities"
+            v-for="a in checkInActivities"
             :key="a.id"
             :label="activityOptionLabel(a)"
             :value="a.id"
@@ -29,7 +31,7 @@
       <template v-if="selectedActivityId">
         <div v-if="selectedActivity" class="current-activity">
           <span>当前活动：{{ selectedActivity.title }}</span>
-          <span class="meta">结束时间 {{ formatDate(selectedActivity.endTime) }}</span>
+          <span class="meta">开始 {{ formatDate(selectedActivity.startTime) }} · 结束 {{ formatDate(selectedActivity.endTime) }}</span>
         </div>
 
         <el-table :data="registrations" v-loading="loading" stripe class="reg-table" empty-text="暂无报名记录">
@@ -44,9 +46,9 @@
             </template>
           </el-table-column>
           <el-table-column label="手机" prop="phone" width="130" />
-          <el-table-column label="志愿时长" width="100">
+          <el-table-column label="报名时间" width="170">
             <template #default="{ row }">
-              {{ row.volunteerHours }} 小时
+              {{ formatDate(row.registrationTime) }}
             </template>
           </el-table-column>
           <el-table-column label="签到状态" width="110">
@@ -56,39 +58,30 @@
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="核销状态" width="100">
+          <el-table-column label="签到时间" width="170">
             <template #default="{ row }">
-              <el-tag :type="row.hoursConfirmed === 1 ? 'success' : 'warning'">
-                {{ row.hoursConfirmed === 1 ? '已核销' : '待核销' }}
-              </el-tag>
+              {{ row.checkInTime ? formatDate(row.checkInTime) : '—' }}
             </template>
           </el-table-column>
-          <el-table-column label="核销时间" width="160">
-            <template #default="{ row }">
-              {{ row.confirmTime ? formatDate(row.confirmTime) : '—' }}
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="140" fixed="right">
+          <el-table-column label="操作" width="120" fixed="right">
             <template #default="{ row }">
               <el-button
-                v-if="row.hoursConfirmed === 0 && row.checkInStatus === 1"
+                v-if="row.checkInStatus !== 1"
                 type="primary"
                 size="small"
-                @click="handleConfirm(row)"
+                @click="handleCheckIn(row)"
               >
-                核销
+                标记签到
               </el-button>
-              <el-tag v-else-if="row.hoursConfirmed === 1" type="success" size="small">已核销</el-tag>
-              <span v-else class="tip-muted">需先签到</span>
+              <el-tag v-else type="success" size="small">已签到</el-tag>
             </template>
           </el-table-column>
         </el-table>
-
       </template>
 
-      <el-empty v-else-if="!endedLoading && endedActivities.length === 0" description="暂无待核销的活动（已结束且未结项）" />
+      <el-empty v-else-if="!activitiesLoading && checkInActivities.length === 0" description="当前没有进行中的活动（未开始、已结束或已取消的活动不显示）" />
 
-      <el-empty v-else-if="!endedLoading" description="请先在上方选择一场待核销的活动" />
+      <el-empty v-else-if="!activitiesLoading" description="请先在上方选择一场活动" />
     </el-card>
   </div>
 </template>
@@ -96,17 +89,17 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { confirmHours, getActivityRegistrations, getEndedActivitiesForAdmin } from '@/api/activity'
+import { getActivityRegistrations, getCheckInActivitiesForAdmin, adminCheckInRegistration } from '@/api/activity'
 import dayjs from 'dayjs'
 
-const endedLoading = ref(false)
-const endedActivities = ref([])
+const activitiesLoading = ref(false)
+const checkInActivities = ref([])
 const selectedActivityId = ref(null)
 const loading = ref(false)
 const registrations = ref([])
 
 const selectedActivity = computed(() =>
-  endedActivities.value.find((a) => a.id === selectedActivityId.value)
+  checkInActivities.value.find((a) => a.id === selectedActivityId.value)
 )
 
 const formatDate = (date) => {
@@ -115,20 +108,21 @@ const formatDate = (date) => {
 }
 
 const activityOptionLabel = (a) => {
+  const start = formatDate(a.startTime)
   const end = formatDate(a.endTime)
-  return `${a.title}（${end} 结束）`
+  return `${a.title}（${start} ~ ${end}）`
 }
 
-const fetchEndedActivities = async () => {
-  endedLoading.value = true
+const fetchCheckInActivities = async () => {
+  activitiesLoading.value = true
   try {
-    const res = await getEndedActivitiesForAdmin()
-    endedActivities.value = res.data || []
+    const res = await getCheckInActivitiesForAdmin()
+    checkInActivities.value = res.data || []
   } catch (e) {
     console.error(e)
-    endedActivities.value = []
+    checkInActivities.value = []
   } finally {
-    endedLoading.value = false
+    activitiesLoading.value = false
   }
 }
 
@@ -152,29 +146,28 @@ const fetchRegistrations = async () => {
   }
 }
 
-const handleConfirm = (row) => {
-  ElMessageBox.confirm(
-    `确定核销「${row.realName || '该志愿者'}」的 ${row.volunteerHours} 小时志愿时长吗？`,
-    '确认核销',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    }
-  ).then(async () => {
-    try {
-      await confirmHours(row.id)
-      ElMessage.success('核销成功')
-      fetchRegistrations()
-      fetchEndedActivities()
-    } catch (error) {
-      console.error('核销失败:', error)
-    }
+const handleCheckIn = (row) => {
+  const name = row.realName || '该志愿者'
+  ElMessageBox.confirm(`确定为「${name}」标记签到吗？`, '活动签到', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'info'
   })
+    .then(async () => {
+      try {
+        await adminCheckInRegistration(row.id)
+        ElMessage.success('签到成功')
+        fetchRegistrations()
+        fetchCheckInActivities()
+      } catch (e) {
+        console.error(e)
+      }
+    })
+    .catch(() => {})
 }
 
 onMounted(() => {
-  fetchEndedActivities()
+  fetchCheckInActivities()
 })
 </script>
 
@@ -215,10 +208,5 @@ onMounted(() => {
 
 .reg-table {
   margin-top: 4px;
-}
-
-.tip-muted {
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
 }
 </style>

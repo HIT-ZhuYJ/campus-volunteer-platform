@@ -4,7 +4,7 @@
 
 **项目名称**: 校园志愿服务管理平台  
 **技术架构**: Spring Cloud Alibaba 微服务  
-**构建时间**: 2026-03-23  
+**构建时间**: 2026-03-25  
 **项目状态**: ✅ 完整构建完成
 
 ## ✅ 已完成内容
@@ -30,9 +30,9 @@
 - `v_activity_statistics` - 活动统计视图
 
 **测试数据**:
-- 3 个测试用户（1 管理员 + 2 志愿者）
-- 7 个志愿活动（含不同招募窗口与 `COMPLETED` / `CANCELLED` 样例）
-- 4 条报名记录（与对应活动的 `current_participants` 一致）
+- 11 个测试用户（1 管理员 + 10 志愿者）
+- 20 个志愿活动（覆盖招募前/招募中/进行中/已结束/已结项/已取消等全部场景）
+- 54 条报名记录（含已签到、已核销等各类状态，`current_participants` 与 `REGISTERED` 流水一致）
 
 ### 3. 核心功能实现
 
@@ -53,22 +53,26 @@
 - `LoginResponse/UserInfo.java` - VO
 
 #### 3.2 活动服务 (activity-service)
-- ✅ 活动列表查询（分页、筛选）
+- ✅ 活动列表查询（分页、筛选，默认按招募截止时间升序）
 - ✅ 活动详情查询
-- ✅ 活动创建（管理员权限）
+- ✅ 活动创建（含 `ActivityScheduleValidator` 时间合法性校验）
 - ✅ 活动报名（Redis防超卖）
 - ✅ 我的报名记录
-- ✅ 时长核销（管理员权限）
-- ✅ AI智能生成文案（管理员权限）
+- ✅ 签到管理：`POST /activity/admin/checkIn/{registrationId}`
+- ✅ 时长核销（仅已结束未结项活动）：`POST /activity/confirmHours/{registrationId}`（写入 `confirm_time`）
+- ✅ 已结束待核销活动列表：`GET /activity/admin/endedActivities`（排除 `COMPLETED`）
+- ✅ AI智能生成文案（管理员权限，DeepSeek 降级可用）
 - ✅ Feign 调用 user-service `POST /user/updateHours` 更新累计时长（走服务间调用，不经网关）
-- ✅ 管理员报名列表：`GET /activity/admin/registrations`、`GET /activity/{activityId}/registrations`
+- ✅ 管理员报名列表：`GET /activity/admin/registrations`、`GET /activity/{activityId}/registrations`（含 `confirmTime`）
 
 **核心文件**:
-- `ActivityController.java` - 活动与报名相关 REST 接口（含管理员报名列表）
-- `ActivityService.java` - 核心业务逻辑（防超卖）
+- `ActivityController.java` - 活动与报名相关 REST 接口（含管理员报名列表、签到、核销、已结束活动）
+- `ActivityService.java` - 核心业务逻辑（防超卖，`COMPLETED` 活动排除）
+- `ActivityScheduleValidator.java` - 时间合法性校验（注册时间 < 截止 ≤ 开始 < 结束）
 - `AIService.java` - AI文案生成（带降级）
-- `ActivityMapper/RegistrationMapper.java` - 数据访问
+- `ActivityMapper/RegistrationMapper.java` - 数据访问（含 `confirmTime`）
 - `Activity/Registration.java` - 实体类
+- `RegistrationVO.java` - 含 `confirmTime` 字段
 - `UserServiceClient.java` - Feign客户端
 
 #### 3.3 网关服务 (gateway-service)
@@ -362,7 +366,7 @@ curl -X POST http://localhost:9000/user/login \
 
 **项目状态**: 🟢 已完成，可直接使用
 
-**最后更新**: 2026-03-23
+**最后更新**: 2026-03-25
 
 **构建者**: AI Assistant
 

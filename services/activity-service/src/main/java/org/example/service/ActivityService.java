@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -48,9 +49,8 @@ public class ActivityService {
     
     public IPage<ActivityVO> listActivities(Integer page, Integer size, String status, String category,
                                             String recruitmentPhase, Long userId) {
-        Page<Activity> pageParam = new Page<>(page, size);
         LambdaQueryWrapper<Activity> wrapper = new LambdaQueryWrapper<>();
-        
+
         if (StringUtils.hasText(status)) {
             wrapper.eq(Activity::getStatus, status);
         }
@@ -74,16 +74,28 @@ public class ActivityService {
                 default -> { /* ignore unknown */ }
             }
         }
-        
-        wrapper.orderByDesc(Activity::getCreateTime);
-        IPage<Activity> activityPage = activityMapper.selectPage(pageParam, wrapper);
+
+        wrapper.orderByAsc(Activity::getRegistrationDeadline);
+
+        // MyBatis-Plus 3.5.9 将 PaginationInnerInterceptor 移至独立的 jsqlparser 模块，
+        // 本项目未引入该模块，故通过 selectCount + last(LIMIT/OFFSET) 手动实现分页，
+        // 等效于开启分页插件后的行为。
+        long total = activityMapper.selectCount(wrapper);
+
+        int offset = (page - 1) * size;
+        wrapper.last("LIMIT " + size + " OFFSET " + offset);
+        List<Activity> records = activityMapper.selectList(wrapper);
+
+        Page<Activity> activityPage = new Page<>(page, size, total);
+        activityPage.setRecords(records);
+
         syncParticipantCountsWithRegistrations(activityPage.getRecords());
 
         return activityPage.convert(activity -> {
             ActivityVO vo = new ActivityVO();
             BeanUtils.copyProperties(activity, vo);
             vo.setAvailableSlots(activity.getMaxParticipants() - activity.getCurrentParticipants());
-            
+
             if (userId != null) {
                 LambdaQueryWrapper<Registration> regWrapper = new LambdaQueryWrapper<>();
                 regWrapper.eq(Registration::getUserId, userId)
@@ -91,7 +103,7 @@ public class ActivityService {
                          .eq(Registration::getStatus, "REGISTERED");
                 vo.setIsRegistered(registrationMapper.selectCount(regWrapper) > 0);
             }
-            
+
             return vo;
         });
     }
@@ -120,15 +132,7 @@ public class ActivityService {
     
     @Transactional(rollbackFor = Exception.class)
     public void createActivity(ActivityCreateRequest request, Long creatorId) {
-        if (request.getRegistrationStartTime() == null || request.getRegistrationDeadline() == null) {
-            throw new BusinessException("请填写招募开始时间与截止时间");
-        }
-        if (!request.getRegistrationStartTime().isBefore(request.getRegistrationDeadline())) {
-            throw new BusinessException("志愿招募开始时间须早于招募截止时间");
-        }
-        if (request.getRegistrationDeadline().isAfter(request.getStartTime())) {
-            throw new BusinessException("报名截止时间不能晚于活动开始时间");
-        }
+        ActivityScheduleValidator.validate(request);
         Activity activity = new Activity();
         BeanUtils.copyProperties(request, activity);
         activity.setCreatorId(creatorId);
@@ -141,6 +145,77 @@ public class ActivityService {
         redisTemplate.opsForValue().set(stockKey, 
             String.valueOf(activity.getMaxParticipants()), 
             7, TimeUnit.DAYS);
+    }
+
+    /**
+     * 管理员更新活动（未结项且未取消）。请求体字段与创建活动一致。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void updateActivity(Long activityId, ActivityCreateRequest request) {
+        Activity existing = activityMapper.selectById(activityId);
+        if (existing == null) {
+            throw new BusinessException("活动不存在");
+        }
+        if (isTerminalOrCancelled(existing.getStatus())) {
+            throw new BusinessException("已结项或已取消的活动不可编辑");
+        }
+        ActivityScheduleValidator.validate(request);
+        if (request.getMaxParticipants() < existing.getCurrentParticipants()) {
+            throw new BusinessException("招募人数不能小于当前报名人数");
+        }
+        Long creatorId = existing.getCreatorId();
+        BeanUtils.copyProperties(request, existing);
+        existing.setId(activityId);
+        existing.setCreatorId(creatorId);
+        activityMapper.updateById(existing);
+        reconcileActivityRegistrationStats(existing, countRegisteredForActivity(activityId));
+    }
+
+    /**
+     * 取消活动：删除全部报名流水，状态置为 CANCELLED，人数清零并重算 Redis。
+     * 若存在已核销记录，用户累计志愿时长不会回滚（与物理删活动一致）。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void cancelActivity(Long activityId) {
+        Activity existing = activityMapper.selectById(activityId);
+        if (existing == null) {
+            throw new BusinessException("活动不存在");
+        }
+        if ("COMPLETED".equals(existing.getStatus())) {
+            throw new BusinessException("已结项的活动无法取消");
+        }
+        if ("CANCELLED".equals(existing.getStatus())) {
+            throw new BusinessException("活动已取消");
+        }
+        LambdaQueryWrapper<Registration> regWrapper = new LambdaQueryWrapper<>();
+        regWrapper.eq(Registration::getActivityId, activityId);
+        registrationMapper.delete(regWrapper);
+        existing.setStatus("CANCELLED");
+        existing.setCurrentParticipants(0);
+        activityMapper.updateById(existing);
+        reconcileActivityRegistrationStats(existing, 0);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public void completeActivity(Long activityId) {
+        Activity existing = activityMapper.selectById(activityId);
+        if (existing == null) {
+            throw new BusinessException("活动不存在");
+        }
+        if ("COMPLETED".equals(existing.getStatus())) {
+            throw new BusinessException("活动已结项");
+        }
+        if ("CANCELLED".equals(existing.getStatus())) {
+            throw new BusinessException("已取消的活动无法结项");
+        }
+        existing.setStatus("COMPLETED");
+        activityMapper.updateById(existing);
+        int n = countRegisteredForActivity(activityId);
+        reconcileActivityRegistrationStats(existing, n);
+    }
+
+    private static boolean isTerminalOrCancelled(String status) {
+        return "COMPLETED".equals(status) || "CANCELLED".equals(status);
     }
     
     @Transactional(rollbackFor = Exception.class)
@@ -203,6 +278,81 @@ public class ActivityService {
         }
         return registrationMapper.selectAllRegistrationsForAdmin();
     }
+
+    /**
+     * 时长核销：已结束（end_time &lt; 当前时间）且未取消的活动，供管理员选择。
+     */
+    public List<ActivityVO> listEndedActivitiesForAdmin() {
+        LocalDateTime now = LocalDateTime.now();
+        LambdaQueryWrapper<Activity> w = new LambdaQueryWrapper<>();
+        w.lt(Activity::getEndTime, now)
+                .ne(Activity::getStatus, "CANCELLED")
+                .ne(Activity::getStatus, "COMPLETED")
+                .orderByDesc(Activity::getEndTime);
+        List<Activity> list = activityMapper.selectList(w);
+        List<ActivityVO> result = new ArrayList<>(list.size());
+        for (Activity a : list) {
+            ActivityVO vo = new ActivityVO();
+            BeanUtils.copyProperties(a, vo);
+            int cur = a.getCurrentParticipants() != null ? a.getCurrentParticipants() : 0;
+            vo.setAvailableSlots(Math.max(0, a.getMaxParticipants() - cur));
+            result.add(vo);
+        }
+        return result;
+    }
+
+    /**
+     * 活动签到：仅「已开始且未结束」的活动（start_time &lt;= 当前时间 &lt;= end_time，边界按库内时间），且未取消。
+     */
+    public List<ActivityVO> listCheckInActivitiesForAdmin() {
+        LocalDateTime now = LocalDateTime.now();
+        LambdaQueryWrapper<Activity> w = new LambdaQueryWrapper<>();
+        w.le(Activity::getStartTime, now)
+                .ge(Activity::getEndTime, now)
+                .ne(Activity::getStatus, "CANCELLED")
+                .orderByAsc(Activity::getStartTime);
+        List<Activity> list = activityMapper.selectList(w);
+        List<ActivityVO> result = new ArrayList<>(list.size());
+        for (Activity a : list) {
+            ActivityVO vo = new ActivityVO();
+            BeanUtils.copyProperties(a, vo);
+            int cur = a.getCurrentParticipants() != null ? a.getCurrentParticipants() : 0;
+            vo.setAvailableSlots(Math.max(0, a.getMaxParticipants() - cur));
+            result.add(vo);
+        }
+        return result;
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public void checkInRegistration(Long registrationId) {
+        Registration registration = registrationMapper.selectById(registrationId);
+        if (registration == null) {
+            throw new BusinessException("报名记录不存在");
+        }
+        if (!"REGISTERED".equals(registration.getStatus())) {
+            throw new BusinessException("报名记录无效");
+        }
+        if (registration.getCheckInStatus() != null && registration.getCheckInStatus() == 1) {
+            throw new BusinessException("该志愿者已签到");
+        }
+        Activity activity = activityMapper.selectById(registration.getActivityId());
+        if (activity == null) {
+            throw new BusinessException("活动不存在");
+        }
+        if ("CANCELLED".equals(activity.getStatus())) {
+            throw new BusinessException("活动已取消，无法签到");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        if (activity.getStartTime() != null && now.isBefore(activity.getStartTime())) {
+            throw new BusinessException("活动尚未开始，无法签到");
+        }
+        if (now.isAfter(activity.getEndTime())) {
+            throw new BusinessException("活动已结束，无法签到");
+        }
+        registration.setCheckInStatus(1);
+        registration.setCheckInTime(now);
+        registrationMapper.updateById(registration);
+    }
     
     @Transactional(rollbackFor = Exception.class)
     public void confirmHours(Long registrationId) {
@@ -214,10 +364,23 @@ public class ActivityService {
         if (registration.getHoursConfirmed() == 1) {
             throw new BusinessException("时长已核销");
         }
+        if (registration.getCheckInStatus() == null || registration.getCheckInStatus() != 1) {
+            throw new BusinessException("仅已签到人员可核销时长");
+        }
         
         Activity activity = activityMapper.selectById(registration.getActivityId());
         if (activity == null) {
             throw new BusinessException("活动不存在");
+        }
+        if (activity.getEndTime() == null) {
+            throw new BusinessException("活动信息异常");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        if (!now.isAfter(activity.getEndTime())) {
+            throw new BusinessException("活动尚未结束，无法核销时长");
+        }
+        if ("CANCELLED".equals(activity.getStatus())) {
+            throw new BusinessException("已取消的活动无法核销");
         }
         
         registration.setHoursConfirmed(1);

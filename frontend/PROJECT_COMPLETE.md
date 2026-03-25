@@ -30,11 +30,13 @@
 - ✅ views/ActivityDetail.vue - 活动详情（完整信息 + 报名）
 - ✅ views/MyCenter.vue - 个人中心（信息 + 志愿足迹）
 
-#### 管理员页面 (4个)
+#### 管理员页面 (6个)
 - ✅ views/admin/AdminLayout.vue - 管理后台布局
-- ✅ views/admin/ActivityManage.vue - 活动管理
-- ✅ views/admin/ActivityCreate.vue - 发布活动（AI生成）
-- ✅ views/admin/HoursConfirm.vue - 时长核销
+- ✅ views/admin/ActivityManage.vue - 活动管理（结项/取消行高亮，canEdit 逻辑修正）
+- ✅ views/admin/ActivityCreate.vue - 发布活动（分组卡片表单 + AI生成）
+- ✅ views/admin/ActivityCheckIn.vue - 签到管理
+- ✅ views/admin/VolunteerHours.vue - 志愿时长统计
+- ✅ views/admin/HoursConfirm.vue - 时长核销（仅已结束未结项活动，含核销时间列）
 
 ### 📚 文档 (2个)
 - ✅ frontend/README.md - 完整文档
@@ -51,28 +53,34 @@
 6. ✅ 个人中心（信息、时长、足迹）
 
 ### 管理员
-1. ✅ 活动管理（查看、删除）
-2. ✅ 发布活动（完整表单）
-3. ✅ AI 智能生成文案（依赖后端 **DeepSeek**，需配置 **`DEEPSEEK_API_KEY`**）
-4. ✅ 时长核销管理
+1. ✅ 活动管理（查看、结项、取消，已结项/已取消行视觉高亮）
+2. ✅ 发布活动（分组卡片表单，时间合法性前后端双验证）
+3. ✅ AI 智能生成文案（DeepSeek，需配置 **`DEEPSEEK_API_KEY`**，失败自动降级）
+4. ✅ 签到管理（按活动查看报名并标记签到状态）
+5. ✅ 时长核销管理（仅已结束未结项活动可操作，展示核销时间）
+6. ✅ 志愿时长统计
 
 ### 技术亮点
 1. ✅ JWT自动管理（请求/响应拦截）
 2. ✅ 路由守卫（登录 + 权限检查）
 3. ✅ 统一错误处理
 4. ✅ API代理配置（开发环境）
-5. ✅ 响应式设计
+5. ✅ 响应式设计（桌面/平板/移动端）
 6. ✅ 组件化开发
+7. ✅ 活动阶段动态计算（`activityPhase.js`）
+8. ✅ 活动列表按招募截止时间升序（最紧迫优先）
+9. ✅ 首页仅展示当前招募中的活动（`recruitmentPhase: RECRUITING`）
+10. ✅ 管理员活动行状态视觉区分（绿色结项/红色取消）
 
 ## 📊 代码统计
 
 | 类型 | 数量 | 说明 |
 |------|------|------|
-| Vue组件 | 12 | 包含所有页面 |
-| JS文件 | 6 | 工具、API、配置 |
+| Vue组件 | 14 | 包含所有页面（新增 ActivityCheckIn、VolunteerHours） |
+| JS文件 | 8 | 工具、API、配置（新增 activityPhase.js、recruitment.js） |
 | 配置文件 | 4 | package.json, vite, html, gitignore |
 | 文档文件 | 2 | README + QUICKSTART |
-| 代码总行数 | ~2500行 | 完整功能实现 |
+| 代码总行数 | ~4500行 | 完整功能实现（含 UI 美化）|
 
 ## 🚀 如何使用
 
@@ -260,11 +268,11 @@ frontend/
 ```
 前端开发进度: ████████████████████ 100%
 
-页面组件: ✅ 12/12
-API接口: ✅ 8/8
-路由配置: ✅ 9/9
+页面组件: ✅ 14/14
+API接口: ✅ 10/10
+路由配置: ✅ 11/11
 状态管理: ✅ 1/1
-工具函数: ✅ 1/1
+工具函数: ✅ 3/3
 文档资料: ✅ 2/2
 ```
 
@@ -274,7 +282,7 @@ API接口: ✅ 8/8
 
 **预计开发时间**: 已完成
 
-**总代码量**: ~2500行
+**总代码量**: ~4500行
 
 **技术评级**: ⭐⭐⭐⭐⭐
 
