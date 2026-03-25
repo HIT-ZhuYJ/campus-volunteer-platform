@@ -178,19 +178,21 @@ const phaseOptions = [
 ]
 const categoryOptions = [
   { label: '全部', value: '' },
-  { label: '学长火炬', value: '学长火炬' },
-  { label: '书记驿站', value: '书记驿站' },
-  { label: '爱心小屋', value: '爱心小屋' },
-  { label: '校友招商', value: '校友招商' },
-  { label: '暖冬行动', value: '暖冬行动' }
+  { label: '校园服务', value: '校园服务' },
+  { label: '公益助学', value: '公益助学' },
+  { label: '社区关怀', value: '社区关怀' },
+  { label: '大型活动', value: '大型活动' },
+  { label: '环保公益', value: '环保公益' },
+  { label: '应急救援', value: '应急救援' }
 ]
 
 const categoryColorMap = {
-  '学长火炬': '#f59e0b',
-  '书记驿站': '#3b82f6',
-  '爱心小屋': '#ec4899',
-  '校友招商': '#8b5cf6',
-  '暖冬行动': '#10b981'
+  '校园服务': '#3b82f6',
+  '公益助学': '#f59e0b',
+  '社区关怀': '#ec4899',
+  '大型活动': '#8b5cf6',
+  '环保公益': '#10b981',
+  '应急救援': '#ef4444'
 }
 const categoryColor = (cat) => categoryColorMap[cat] || '#6b7280'
 

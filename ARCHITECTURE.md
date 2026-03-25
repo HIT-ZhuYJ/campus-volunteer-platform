@@ -169,7 +169,7 @@ cloud-demo/
   - **注意**：`ONGOING`（进行中）不存储，活动阶段由当前时间与 `start_time`/`end_time` 动态判断
 - `registration_start_time`: 招募开始时间
 - `registration_deadline`: 报名截止时间
-- `category`: 学长火炬、书记驿站、爱心小屋、校友招商、暖冬行动
+- `category`: 校园服务、公益助学、社区关怀、大型活动、环保公益、应急救援
 
 #### vol_registration
 - `check_in_status`: 0-未签到 / 1-已签到（管理员在签到模块标记）
@@ -257,7 +257,7 @@ activityMapper.incrementParticipants(activityId);
 // 输入
 {
   "location": "校医院门口",
-  "category": "爱心小屋",
+  "category": "社区关怀",
   "keywords": "献血车, 爱心服务, 周六"
 }
 
@@ -267,7 +267,7 @@ activityMapper.incrementParticipants(activityId);
 Prompt: "请为校园志愿活动生成招募文案..."
 
 // 输出
-"【爱心小屋】志愿服务活动火热招募中！
+"【社区关怀】志愿服务活动火热招募中！
 活动地点：校医院门口
 在这里，你将有机会用实际行动践行志愿精神..."
 ```
