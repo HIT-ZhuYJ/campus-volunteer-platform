@@ -146,11 +146,12 @@
           </el-form-item>
           <el-form-item label="活动类型" prop="category">
             <el-select v-model="editForm.category" placeholder="请选择活动类型" style="width: 100%">
-              <el-option label="学长火炬" value="学长火炬" />
-              <el-option label="书记驿站" value="书记驿站" />
-              <el-option label="爱心小屋" value="爱心小屋" />
-              <el-option label="校友招商" value="校友招商" />
-              <el-option label="暖冬行动" value="暖冬行动" />
+              <el-option label="校园服务" value="校园服务" />
+              <el-option label="公益助学" value="公益助学" />
+              <el-option label="社区关怀" value="社区关怀" />
+              <el-option label="大型活动" value="大型活动" />
+              <el-option label="环保公益" value="环保公益" />
+              <el-option label="应急救援" value="应急救援" />
             </el-select>
           </el-form-item>
           <el-form-item label="服务地点" prop="location">
