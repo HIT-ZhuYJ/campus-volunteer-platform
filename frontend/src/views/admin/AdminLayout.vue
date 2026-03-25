@@ -17,9 +17,17 @@
             <el-icon><Plus /></el-icon>
             <span>发布活动</span>
           </el-menu-item>
+          <el-menu-item index="/admin/checkin">
+            <el-icon><Calendar /></el-icon>
+            <span>活动签到</span>
+          </el-menu-item>
           <el-menu-item index="/admin/confirm">
             <el-icon><CircleCheck /></el-icon>
             <span>时长核销</span>
+          </el-menu-item>
+          <el-menu-item index="/admin/hours">
+            <el-icon><DataLine /></el-icon>
+            <span>时长查询</span>
           </el-menu-item>
           <el-menu-item index="/home">
             <el-icon><HomeFilled /></el-icon>

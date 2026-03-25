@@ -39,9 +39,11 @@ frontend/
 │   │   ├── MyCenter.vue    # 个人中心
 │   │   └── admin/          # 管理员页面
 │   │       ├── AdminLayout.vue
-│   │       ├── ActivityManage.vue
-│   │       ├── ActivityCreate.vue
-│   │       └── HoursConfirm.vue
+│   │       ├── ActivityManage.vue   # 活动管理（结项/取消高亮行）
+│   │       ├── ActivityCreate.vue   # 发布活动（分组卡片表单）
+│   │       ├── ActivityCheckIn.vue  # 签到管理
+│   │       ├── VolunteerHours.vue   # 时长统计
+│   │       └── HoursConfirm.vue     # 时长核销（仅已结束未结项）
 │   ├── components/         # 公共组件
 │   │   └── Layout.vue      # 主布局（响应式导航）
 │   ├── api/               # API接口
@@ -52,7 +54,9 @@ frontend/
 │   ├── store/             # 状态管理
 │   │   └── user.js        # 用户状态
 │   ├── utils/             # 工具函数
-│   │   └── request.js     # Axios封装
+│   │   ├── request.js     # Axios封装
+│   │   ├── activityPhase.js  # 活动阶段标签（含 COMPLETED 独立处理）
+│   │   └── recruitment.js    # 招募状态工具
 │   ├── style.css          # 全局样式
 │   ├── App.vue            # 根组件
 │   └── main.js            # 入口文件
@@ -109,9 +113,9 @@ npm run preview
 - 📊 **数据统计卡片**（4个指标）
   - 累计志愿时长
   - 参与活动数
-  - 已完成活动
+  - 已签到次数（修正自"已完成"，使用 `checkInStatus`）
   - 已核销次数
-- 🎴 **活动卡片网格**
+- 🎴 **最新活动卡片网格**（仅展示招募窗口内的活动，按截止时间升序）
   - 悬浮效果
   - 渐变图标
   - 活动状态标签

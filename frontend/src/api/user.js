@@ -25,3 +25,12 @@ export const getUserInfo = () => {
     method: 'get'
   })
 }
+
+// 管理员：查询所有志愿者时长（支持 keyword 关键字筛选）
+export const getVolunteerHoursList = (keyword = '') => {
+  return request({
+    url: '/user/admin/hours',
+    method: 'get',
+    params: keyword ? { keyword } : {}
+  })
+}

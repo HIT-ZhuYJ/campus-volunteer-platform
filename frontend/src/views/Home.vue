@@ -37,7 +37,7 @@
               </div>
               <div class="stat-info">
                 <div class="stat-value">{{ completedCount }}</div>
-                <div class="stat-label">已完成</div>
+                <div class="stat-label">已签到</div>
               </div>
             </div>
           </el-card>
@@ -114,7 +114,7 @@ const userInfo = ref({})
 
 const registrationCount = computed(() => registrations.value.length)
 const completedCount = computed(() => {
-  return registrations.value.filter(r => r.hoursConfirmed === 1).length
+  return registrations.value.filter(r => r.checkInStatus === 1).length
 })
 const confirmedCount = computed(() => {
   return registrations.value.filter(r => r.hoursConfirmed === 1).length
@@ -127,7 +127,7 @@ const goToDetail = (id) => {
 const fetchData = async () => {
   try {
     const [actRes, regRes, userRes] = await Promise.all([
-      getActivityList({ page: 1, size: 6, status: 'RECRUITING' }),
+      getActivityList({ page: 1, size: 6, recruitmentPhase: 'RECRUITING' }),
       getMyRegistrations(),
       getUserInfo()
     ])

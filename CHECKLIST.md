@@ -42,10 +42,11 @@
 - [ ] `src/main/java/org/example/dto/ActivityCreateRequest.java`
 - [ ] `src/main/java/org/example/dto/AIGenerateRequest.java`
 - [ ] `src/main/java/org/example/vo/ActivityVO.java`
-- [ ] `src/main/java/org/example/vo/RegistrationVO.java`
+- [ ] `src/main/java/org/example/vo/RegistrationVO.java`（含 `confirmTime` 字段）
 - [ ] `src/main/java/org/example/mapper/ActivityMapper.java`
-- [ ] `src/main/java/org/example/mapper/RegistrationMapper.java`
+- [ ] `src/main/java/org/example/mapper/RegistrationMapper.java`（含 `confirmTime` 查询）
 - [ ] `src/main/java/org/example/service/ActivityService.java`
+- [ ] `src/main/java/org/example/service/ActivityScheduleValidator.java`（时间合法性校验）
 - [ ] `src/main/java/org/example/service/AIService.java`
 - [ ] `src/main/java/org/example/feign/UserServiceClient.java`
 - [ ] `src/main/java/org/example/controller/ActivityController.java`
@@ -156,9 +157,9 @@
 
 - [ ] 测试数据已插入
   ```sql
-  SELECT COUNT(*) FROM sys_user;           -- 3 条
-  SELECT COUNT(*) FROM vol_activity;      -- 7 条
-  SELECT COUNT(*) FROM vol_registration;  -- 4 条
+  SELECT COUNT(*) FROM sys_user;           -- 11 条（1 管理员 + 10 志愿者）
+  SELECT COUNT(*) FROM vol_activity;      -- 20 条
+  SELECT COUNT(*) FROM vol_registration;  -- 54 条
   ```
 
 ---
@@ -263,7 +264,8 @@ curl -X POST http://localhost:9000/user/login \
 ```bash
 curl http://localhost:9000/activity/list?page=1&size=10
 ```
-- [ ] 返回: code=200, `data.total` 为 7（与 init.sql 示例活动条数一致）
+- [ ] 返回: code=200, `data.total` 为 20（与 init.sql 示例活动条数一致）
+- [ ] 默认按 `registration_deadline` 升序排列
 
 #### 用户信息接口（需要登录）
 ```bash
@@ -371,7 +373,7 @@ curl -X GET http://localhost:9000/activity/myRegistrations \
 
 ## 📝 签名确认
 
-**项目交付日期**: 2026-03-23
+**项目交付日期**: 2026-03-25
 
 **项目状态**: ✅ 已完成，可直接使用
 

@@ -50,6 +50,37 @@ public class ActivityController {
         activityService.createActivity(request, userId);
         return Result.success();
     }
+
+    @PutMapping("/{id}")
+    public Result<Void> updateActivity(
+            @PathVariable Long id,
+            @RequestBody ActivityCreateRequest request,
+            @RequestHeader("X-User-Role") String role) {
+
+        if (!"ADMIN".equals(role)) {
+            return Result.forbidden("只有管理员才能编辑活动");
+        }
+        activityService.updateActivity(id, request);
+        return Result.success();
+    }
+
+    @PostMapping("/{id}/cancel")
+    public Result<Void> cancelActivity(@PathVariable Long id, @RequestHeader("X-User-Role") String role) {
+        if (!"ADMIN".equals(role)) {
+            return Result.forbidden("只有管理员才能取消活动");
+        }
+        activityService.cancelActivity(id);
+        return Result.success();
+    }
+
+    @PostMapping("/{id}/complete")
+    public Result<Void> completeActivity(@PathVariable Long id, @RequestHeader("X-User-Role") String role) {
+        if (!"ADMIN".equals(role)) {
+            return Result.forbidden("只有管理员才能结项活动");
+        }
+        activityService.completeActivity(id);
+        return Result.success();
+    }
     
     @PostMapping("/register/{activityId}")
     public Result<Void> registerActivity(
@@ -81,6 +112,42 @@ public class ActivityController {
             return Result.forbidden("只有管理员才能查看报名列表");
         }
         return Result.success(activityService.listRegistrationsForAdmin(activityId));
+    }
+
+    /**
+     * 管理员：已结束的活动列表（用于时长核销选择活动）。
+     */
+    @GetMapping("/admin/endedActivities")
+    public Result<List<ActivityVO>> listEndedActivitiesForAdmin(@RequestHeader("X-User-Role") String role) {
+        if (!"ADMIN".equals(role)) {
+            return Result.forbidden("只有管理员才能查看");
+        }
+        return Result.success(activityService.listEndedActivitiesForAdmin());
+    }
+
+    /**
+     * 管理员：已开始且未结束的活动（进行中），供活动签到选择。
+     */
+    @GetMapping("/admin/checkInActivities")
+    public Result<List<ActivityVO>> listCheckInActivitiesForAdmin(@RequestHeader("X-User-Role") String role) {
+        if (!"ADMIN".equals(role)) {
+            return Result.forbidden("只有管理员才能查看");
+        }
+        return Result.success(activityService.listCheckInActivitiesForAdmin());
+    }
+
+    /**
+     * 管理员：为报名记录标记签到（活动未结束前可操作）。
+     */
+    @PostMapping("/admin/checkIn/{registrationId}")
+    public Result<Void> checkInRegistration(
+            @PathVariable Long registrationId,
+            @RequestHeader("X-User-Role") String role) {
+        if (!"ADMIN".equals(role)) {
+            return Result.forbidden("只有管理员才能签到");
+        }
+        activityService.checkInRegistration(registrationId);
+        return Result.success();
     }
 
     /**

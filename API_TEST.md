@@ -164,12 +164,14 @@ curl -X GET http://localhost:9000/user/info \
 **请求参数**：
 - `page`：页码（默认1）
 - `size`：每页大小（默认10）
-- `status`：活动状态（可选：`RECRUITING`/`ONGOING`/`COMPLETED`）
+- `status`：活动状态（可选：`RECRUITING`/`COMPLETED`/`CANCELLED`，注：`ONGOING` 不是存储状态，请勿使用）
 - `category`：活动类型（可选：学长火炬、书记驿站等）
 - `recruitmentPhase`：招募阶段（可选，与前端「招募状态」筛选一致）
   - `NOT_STARTED`：当前时间早于 `registrationStartTime`
   - `RECRUITING`：在招募窗口内且非结项/取消
   - `ENDED`：已过报名截止或活动为 `COMPLETED`/`CANCELLED`
+
+**排序**：默认按 `registration_deadline` 升序排列（截止时间最近的排最前）
 
 **请求示例**：
 ```bash
@@ -213,7 +215,7 @@ curl "http://localhost:9000/activity/list?recruitmentPhase=ENDED"
         "availableSlots": 48
       }
     ],
-    "total": 7,
+    "total": 20,
     "size": 10,
     "current": 1,
     "pages": 1
@@ -299,7 +301,9 @@ curl -X POST http://localhost:9000/activity/create \
 }
 ```
 
-**校验规则（后端）**：`registrationStartTime` &lt; `registrationDeadline` ≤ `startTime`。
+**校验规则（后端 `ActivityScheduleValidator`）**：
+- `registrationStartTime` < `registrationDeadline` ≤ `startTime` < `endTime`
+- `startTime` 必须早于 `endTime`（后端会返回 400 + 具体错误信息）
 
 **响应示例**：
 ```json
@@ -442,6 +446,7 @@ curl -X GET "http://localhost:9000/activity/admin/registrations?activityId=1" \
       "registrationTime": "2024-08-20T15:30:00",
       "checkInStatus": 0,
       "hoursConfirmed": 0,
+      "confirmTime": null,
       "status": "REGISTERED",
       "username": "student01",
       "realName": "张三",
@@ -468,7 +473,35 @@ curl -X GET http://localhost:9000/activity/1/registrations \
 
 响应格式同 **7a** 的 `data` 数组（仅该活动）。
 
-### 8. 核销时长（管理员）
+### 8. 获取已结束待核销活动列表（管理员）
+
+**接口**：`GET /activity/admin/endedActivities`
+
+**需要管理员权限**
+
+**说明**：返回 `end_time` 已过且 `status != COMPLETED` 的活动列表，用于时长核销模块选择活动。
+
+**请求示例**：
+```bash
+curl http://localhost:9000/activity/admin/endedActivities \
+  -H "Authorization: Bearer ADMIN_TOKEN"
+```
+
+### 9. 标记签到（管理员）
+
+**接口**：`POST /activity/admin/checkIn/{registrationId}`
+
+**需要管理员权限**
+
+**说明**：将指定报名记录的 `check_in_status` 置为 `1`（已签到）。
+
+**请求示例**：
+```bash
+curl -X POST http://localhost:9000/activity/admin/checkIn/3 \
+  -H "Authorization: Bearer ADMIN_TOKEN"
+```
+
+### 10. 核销时长（管理员）
 
 **接口**：`POST /activity/confirmHours/{registrationId}`
 
@@ -491,7 +524,9 @@ curl -X POST http://localhost:9000/activity/confirmHours/1 \
 
 **说明**：
 - 核销成功后，`vol_registration.hours_confirmed` 设为 `1`（已核销）
-- 同时经 Feign 调用 `user-service` 更新用户的累计志愿时长
+- 同时写入 `confirm_time`（核销时间戳）
+- 经 Feign 调用 `user-service` 更新用户的累计志愿时长
+- 仅**已结束且未结项**的活动的报名记录可核销（前端时长核销模块已过滤）
 
 ## 🧪 测试场景
 

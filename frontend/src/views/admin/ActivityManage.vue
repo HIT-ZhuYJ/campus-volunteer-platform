@@ -5,7 +5,7 @@
         <h3>活动管理</h3>
       </template>
 
-      <el-table :data="activities" v-loading="loading">
+      <el-table :data="activities" v-loading="loading" :row-class-name="getRowClass">
         <el-table-column label="活动标题" prop="title" min-width="200" />
         <el-table-column label="活动类型" width="120">
           <template #default="{ row }">
@@ -23,11 +23,11 @@
             {{ formatDate(row.startTime) }}
           </template>
         </el-table-column>
-        <el-table-column label="活动状态" width="100">
+        <el-table-column label="活动状态" width="120">
           <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)">
-              {{ getStatusText(row.status) }}
-            </el-tag>
+            <template v-for="p in [getActivityPhaseDisplay(row)]" :key="p.text">
+              <el-tag :type="p.type">{{ p.text }}</el-tag>
+            </template>
           </template>
         </el-table-column>
         <el-table-column label="招募状态" width="100">
@@ -37,10 +37,37 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="280" fixed="right">
+        <el-table-column label="操作" width="440" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" size="small" link @click="viewDetail(row.id)">
               查看
+            </el-button>
+            <el-button
+              v-if="canEdit(row)"
+              type="warning"
+              size="small"
+              link
+              @click="openEditDialog(row)"
+            >
+              编辑
+            </el-button>
+            <el-button
+              v-if="canEdit(row)"
+              type="info"
+              size="small"
+              link
+              @click="handleCancelActivity(row)"
+            >
+              取消活动
+            </el-button>
+            <el-button
+              v-if="canEdit(row)"
+              type="success"
+              size="small"
+              link
+              @click="handleCompleteActivity(row)"
+            >
+              结项
             </el-button>
             <el-button type="success" size="small" link @click="openRegistrationList(row)">
               报名名单 ({{ row.currentParticipants ?? 0 }})
@@ -52,14 +79,16 @@
         </el-table-column>
       </el-table>
 
-      <div class="pagination">
+      <div class="pagination-bar">
+        <span class="total-tip">共 {{ pagination.total }} 条活动</span>
         <el-pagination
           v-model:current-page="pagination.page"
           v-model:page-size="pagination.size"
           :total="pagination.total"
           :page-sizes="[10, 20, 50]"
-          layout="total, sizes, prev, pager, next, jumper"
-          @size-change="fetchActivities"
+          layout="sizes, prev, pager, next, jumper"
+          background
+          @size-change="handleSizeChange"
           @current-change="fetchActivities"
         />
       </div>
@@ -102,20 +131,215 @@
         <el-button type="primary" @click="regDialogVisible = false">关闭</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog
+      v-model="editDialogVisible"
+      title="编辑活动"
+      width="min(640px, 96vw)"
+      destroy-on-close
+      @closed="resetEditForm"
+    >
+      <div v-loading="editDetailLoading" class="edit-dialog-body">
+        <el-form v-if="!editDetailLoading" :model="editForm" :rules="editRules" ref="editFormRef" label-width="120px">
+          <el-form-item label="活动标题" prop="title">
+            <el-input v-model="editForm.title" placeholder="请输入活动标题" />
+          </el-form-item>
+          <el-form-item label="活动类型" prop="category">
+            <el-select v-model="editForm.category" placeholder="请选择活动类型" style="width: 100%">
+              <el-option label="学长火炬" value="学长火炬" />
+              <el-option label="书记驿站" value="书记驿站" />
+              <el-option label="爱心小屋" value="爱心小屋" />
+              <el-option label="校友招商" value="校友招商" />
+              <el-option label="暖冬行动" value="暖冬行动" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="服务地点" prop="location">
+            <el-input v-model="editForm.location" placeholder="请输入服务地点" />
+          </el-form-item>
+          <el-form-item label="AI生成文案">
+            <el-row :gutter="10">
+              <el-col :span="18">
+                <el-input v-model="editAiKeywords" placeholder="关键词，例如：图书馆、值班" />
+              </el-col>
+              <el-col :span="6">
+                <el-button type="primary" @click="handleEditAIGenerate" :loading="editAiLoading">AI生成</el-button>
+              </el-col>
+            </el-row>
+          </el-form-item>
+          <el-form-item label="活动详情" prop="description">
+            <el-input v-model="editForm.description" type="textarea" :rows="6" placeholder="活动详情" />
+          </el-form-item>
+          <el-form-item label="招募人数" prop="maxParticipants">
+            <el-input-number v-model="editForm.maxParticipants" :min="1" :max="500" />
+            <span class="form-tip">须 ≥ 当前已报名人数</span>
+          </el-form-item>
+          <el-form-item label="志愿时长" prop="volunteerHours">
+            <el-input-number v-model="editForm.volunteerHours" :min="0.5" :max="24" :step="0.5" />
+            <span style="margin-left: 10px">小时</span>
+          </el-form-item>
+          <el-form-item label="活动开始时间" prop="startTime">
+            <el-date-picker
+              v-model="editForm.startTime"
+              type="datetime"
+              format="YYYY-MM-DD HH:mm"
+              value-format="YYYY-MM-DDTHH:mm:ss"
+              style="width: 100%"
+            />
+          </el-form-item>
+          <el-form-item label="活动结束时间" prop="endTime">
+            <el-date-picker
+              v-model="editForm.endTime"
+              type="datetime"
+              format="YYYY-MM-DD HH:mm"
+              value-format="YYYY-MM-DDTHH:mm:ss"
+              style="width: 100%"
+            />
+          </el-form-item>
+          <el-form-item label="招募开始时间" prop="registrationStartTime">
+            <el-date-picker
+              v-model="editForm.registrationStartTime"
+              type="datetime"
+              format="YYYY-MM-DD HH:mm"
+              value-format="YYYY-MM-DDTHH:mm:ss"
+              style="width: 100%"
+            />
+          </el-form-item>
+          <el-form-item label="报名截止时间" prop="registrationDeadline">
+            <el-date-picker
+              v-model="editForm.registrationDeadline"
+              type="datetime"
+              format="YYYY-MM-DD HH:mm"
+              value-format="YYYY-MM-DDTHH:mm:ss"
+              style="width: 100%"
+            />
+          </el-form-item>
+        </el-form>
+      </div>
+      <template #footer>
+        <el-button @click="editDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="editSubmitLoading" @click="submitEdit">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getActivityList, deleteActivity, getActivityRegistrations } from '@/api/activity'
+import {
+  getActivityList,
+  deleteActivity,
+  getActivityRegistrations,
+  getActivityDetail,
+  updateActivity,
+  generateDescription,
+  adminCancelActivity,
+  adminCompleteActivity
+} from '@/api/activity'
 import { getRecruitmentDisplay } from '@/utils/recruitment'
+import { getActivityPhaseDisplay } from '@/utils/activityPhase'
 import dayjs from 'dayjs'
 
 const router = useRouter()
 const loading = ref(false)
 const activities = ref([])
+
+const editDialogVisible = ref(false)
+const editDetailLoading = ref(false)
+const editSubmitLoading = ref(false)
+const editFormRef = ref()
+const editingId = ref(null)
+const editAiKeywords = ref('')
+const editAiLoading = ref(false)
+
+const editForm = reactive({
+  title: '',
+  category: '',
+  location: '',
+  description: '',
+  maxParticipants: 20,
+  volunteerHours: 2,
+  startTime: '',
+  endTime: '',
+  registrationStartTime: '',
+  registrationDeadline: ''
+})
+
+const editRules = {
+  title: [{ required: true, message: '请输入活动标题', trigger: 'blur' }],
+  category: [{ required: true, message: '请选择活动类型', trigger: 'change' }],
+  location: [{ required: true, message: '请输入服务地点', trigger: 'blur' }],
+  description: [{ required: true, message: '请输入活动详情', trigger: 'blur' }],
+  maxParticipants: [{ required: true, message: '请输入招募人数', trigger: 'blur' }],
+  volunteerHours: [{ required: true, message: '请输入志愿时长', trigger: 'blur' }],
+  startTime: [
+    { required: true, message: '请选择活动开始时间', trigger: 'change' },
+    {
+      validator: (_rule, value, callback) => {
+        if (!value || !editForm.endTime) { callback(); return }
+        if (new Date(value) >= new Date(editForm.endTime)) {
+          callback(new Error('活动开始时间须早于结束时间'))
+          return
+        }
+        callback()
+      },
+      trigger: 'change'
+    }
+  ],
+  endTime: [
+    { required: true, message: '请选择活动结束时间', trigger: 'change' },
+    {
+      validator: (_rule, value, callback) => {
+        if (!value || !editForm.startTime) { callback(); return }
+        if (new Date(value) <= new Date(editForm.startTime)) {
+          callback(new Error('活动结束时间须晚于开始时间'))
+          return
+        }
+        callback()
+      },
+      trigger: 'change'
+    }
+  ],
+  registrationStartTime: [
+    { required: true, message: '请选择招募开始时间', trigger: 'change' },
+    {
+      validator: (_rule, value, callback) => {
+        if (!value || !editForm.registrationDeadline) {
+          callback()
+          return
+        }
+        if (new Date(editForm.registrationDeadline) <= new Date(value)) {
+          callback(new Error('招募开始须早于报名截止时间'))
+          return
+        }
+        callback()
+      },
+      trigger: 'change'
+    }
+  ],
+  registrationDeadline: [
+    { required: true, message: '请选择报名截止时间', trigger: 'change' },
+    {
+      validator: (_rule, value, callback) => {
+        if (!value || !editForm.registrationStartTime) {
+          callback()
+          return
+        }
+        if (new Date(value) <= new Date(editForm.registrationStartTime)) {
+          callback(new Error('截止时间须晚于招募开始时间'))
+          return
+        }
+        if (editForm.startTime && new Date(value) > new Date(editForm.startTime)) {
+          callback(new Error('报名截止时间不能晚于活动开始时间'))
+          return
+        }
+        callback()
+      },
+      trigger: 'change'
+    }
+  ]
+}
 
 const regDialogVisible = ref(false)
 const regLoading = ref(false)
@@ -138,22 +362,124 @@ const formatDate = (date) => {
   return dayjs(date).format('YYYY-MM-DD HH:mm')
 }
 
-const getStatusType = (status) => {
-  const map = {
-    'RECRUITING': 'success',
-    'ONGOING': 'warning',
-    'COMPLETED': 'info'
-  }
-  return map[status] || 'info'
+const canEdit = (row) => row.status === 'RECRUITING'
+
+const getRowClass = ({ row }) => {
+  if (row.status === 'COMPLETED') return 'row-completed'
+  if (row.status === 'CANCELLED') return 'row-cancelled'
+  return ''
 }
 
-const getStatusText = (status) => {
-  const map = {
-    'RECRUITING': '招募中',
-    'ONGOING': '进行中',
-    'COMPLETED': '已结项'
+const resetEditForm = () => {
+  editingId.value = null
+  editAiKeywords.value = ''
+  Object.assign(editForm, {
+    title: '',
+    category: '',
+    location: '',
+    description: '',
+    maxParticipants: 20,
+    volunteerHours: 2,
+    startTime: '',
+    endTime: '',
+    registrationStartTime: '',
+    registrationDeadline: ''
+  })
+}
+
+const openEditDialog = async (row) => {
+  if (!canEdit(row)) return
+  editingId.value = row.id
+  editDialogVisible.value = true
+  editDetailLoading.value = true
+  try {
+    const res = await getActivityDetail(row.id)
+    const d = res.data || {}
+    Object.assign(editForm, {
+      title: d.title ?? '',
+      category: d.category ?? '',
+      location: d.location ?? '',
+      description: d.description ?? '',
+      maxParticipants: d.maxParticipants ?? 20,
+      volunteerHours: d.volunteerHours != null ? Number(d.volunteerHours) : 2,
+      startTime: d.startTime ?? '',
+      endTime: d.endTime ?? '',
+      registrationStartTime: d.registrationStartTime ?? '',
+      registrationDeadline: d.registrationDeadline ?? ''
+    })
+    await nextTick()
+    editFormRef.value?.clearValidate()
+  } catch (e) {
+    console.error(e)
+    editDialogVisible.value = false
+  } finally {
+    editDetailLoading.value = false
   }
-  return map[status] || status
+}
+
+const handleEditAIGenerate = async () => {
+  if (!editForm.location || !editForm.category) {
+    ElMessage.warning('请先填写活动类型和服务地点')
+    return
+  }
+  editAiLoading.value = true
+  try {
+    const res = await generateDescription({
+      location: editForm.location,
+      category: editForm.category,
+      keywords: editAiKeywords.value
+    })
+    editForm.description = res.data
+    ElMessage.success('AI生成成功')
+  } catch (e) {
+    console.error(e)
+  } finally {
+    editAiLoading.value = false
+  }
+}
+
+const submitEdit = async () => {
+  if (!editingId.value) return
+  await editFormRef.value.validate()
+  editSubmitLoading.value = true
+  try {
+    await updateActivity(editingId.value, { ...editForm })
+    ElMessage.success('保存成功')
+    editDialogVisible.value = false
+    fetchActivities()
+  } catch {
+    /* 错误由 request 拦截器提示 */
+  } finally {
+    editSubmitLoading.value = false
+  }
+}
+
+const handleCancelActivity = (row) => {
+  ElMessageBox.confirm(
+    '确定取消该活动？将删除该活动下全部报名记录，并释放名额；已核销计入用户累计志愿时长不会回滚。',
+    '取消活动',
+    { type: 'warning', confirmButtonText: '确定取消', cancelButtonText: '关闭' }
+  )
+    .then(async () => {
+      await adminCancelActivity(row.id)
+      ElMessage.success('已取消活动')
+      fetchActivities()
+    })
+    .catch(() => {})
+}
+
+const handleCompleteActivity = (row) => {
+  ElMessageBox.confirm(
+    '确定将活动标记为已结项？结项后不可再编辑或报名。',
+    '活动结项',
+    { type: 'warning', confirmButtonText: '确定结项', cancelButtonText: '关闭' }
+  )
+    .then(async () => {
+      await adminCompleteActivity(row.id)
+      ElMessage.success('已结项')
+      fetchActivities()
+    })
+    .catch(() => {})
 }
 
 const viewDetail = (id) => {
@@ -195,6 +521,11 @@ const handleDelete = (id) => {
   }).catch(() => {})
 }
 
+const handleSizeChange = () => {
+  pagination.page = 1
+  fetchActivities()
+}
+
 const fetchActivities = async () => {
   loading.value = true
   try {
@@ -217,10 +548,18 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.pagination {
+.pagination-bar {
   margin-top: 20px;
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.total-tip {
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
 }
 
 .dialog-footer-tip {
@@ -228,5 +567,27 @@ onMounted(() => {
   line-height: 32px;
   color: var(--el-text-color-secondary);
   font-size: 13px;
+}
+
+.form-tip {
+  margin-left: 10px;
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+}
+
+.edit-dialog-body {
+  min-height: 120px;
+}
+</style>
+
+<style>
+.el-table .row-completed td {
+  background-color: #f0f9eb !important;
+  color: var(--el-text-color-secondary);
+}
+.el-table .row-cancelled td {
+  background-color: #fef0f0 !important;
+  color: var(--el-text-color-placeholder);
+  text-decoration: line-through;
 }
 </style>

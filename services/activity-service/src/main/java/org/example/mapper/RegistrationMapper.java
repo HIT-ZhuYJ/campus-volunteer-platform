@@ -23,7 +23,8 @@ public interface RegistrationMapper extends BaseMapper<Registration> {
 
     @Select("SELECT r.id, r.user_id AS userId, r.activity_id AS activityId, a.title AS activityTitle, a.location, " +
             "a.volunteer_hours AS volunteerHours, a.start_time AS startTime, r.registration_time AS registrationTime, " +
-            "r.check_in_status AS checkInStatus, r.hours_confirmed AS hoursConfirmed, r.status, " +
+            "r.check_in_status AS checkInStatus, r.check_in_time AS checkInTime, " +
+            "r.hours_confirmed AS hoursConfirmed, r.confirm_time AS confirmTime, r.status, " +
             "u.username, u.real_name AS realName, u.student_no AS studentNo, u.phone " +
             "FROM vol_registration r " +
             "INNER JOIN vol_activity a ON r.activity_id = a.id " +
@@ -34,7 +35,8 @@ public interface RegistrationMapper extends BaseMapper<Registration> {
 
     @Select("SELECT r.id, r.user_id AS userId, r.activity_id AS activityId, a.title AS activityTitle, a.location, " +
             "a.volunteer_hours AS volunteerHours, a.start_time AS startTime, r.registration_time AS registrationTime, " +
-            "r.check_in_status AS checkInStatus, r.hours_confirmed AS hoursConfirmed, r.status, " +
+            "r.check_in_status AS checkInStatus, r.check_in_time AS checkInTime, " +
+            "r.hours_confirmed AS hoursConfirmed, r.confirm_time AS confirmTime, r.status, " +
             "u.username, u.real_name AS realName, u.student_no AS studentNo, u.phone " +
             "FROM vol_registration r " +
             "INNER JOIN vol_activity a ON r.activity_id = a.id " +

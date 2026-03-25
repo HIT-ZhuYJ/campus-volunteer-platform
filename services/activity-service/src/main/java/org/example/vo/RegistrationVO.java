@@ -33,8 +33,12 @@ public class RegistrationVO implements Serializable {
     private LocalDateTime registrationTime;
     
     private Integer checkInStatus;
+
+    private LocalDateTime checkInTime;
     
     private Integer hoursConfirmed;
+
+    private LocalDateTime confirmTime;
     
     private String status;
 }

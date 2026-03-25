@@ -120,7 +120,7 @@ cloud-demo/
 │   │   ├── dto/                   # ActivityCreateRequest, AIGenerateRequest
 │   │   ├── vo/                    # ActivityVO, RegistrationVO
 │   │   ├── mapper/                # ActivityMapper, RegistrationMapper
-│   │   ├── service/               # ActivityService, AIService
+│   │   │   ├── service/               # ActivityService, AIService, ActivityScheduleValidator
 │   │   ├── feign/                 # UserServiceClient
 │   │   └── controller/            # ActivityController
 │   ├── monitor-service/           # 监控服务
@@ -164,13 +164,17 @@ cloud-demo/
 - `status`: 0-禁用 / 1-启用
 
 #### vol_activity
-- `current_participants`: 当前报名人数（实时更新）
-- `status`: RECRUITING(招募中) / ONGOING(进行中) / COMPLETED(已结项) / CANCELLED(已取消)
+- `current_participants`: 当前报名人数（与 `REGISTERED` 状态报名条数一致）
+- `status`: RECRUITING(招募中) / COMPLETED(已结项) / CANCELLED(已取消)
+  - **注意**：`ONGOING`（进行中）不存储，活动阶段由当前时间与 `start_time`/`end_time` 动态判断
+- `registration_start_time`: 招募开始时间
+- `registration_deadline`: 报名截止时间
 - `category`: 学长火炬、书记驿站、爱心小屋、校友招商、暖冬行动
 
 #### vol_registration
-- `check_in_status`: 0-未签到 / 1-已签到
+- `check_in_status`: 0-未签到 / 1-已签到（管理员在签到模块标记）
 - `hours_confirmed`: 0-未核销 / 1-已核销（核销后更新用户时长）
+- `confirm_time`: 核销时间戳（由管理员核销时写入）
 - `status`: REGISTERED(已报名) / CANCELLED(已取消)
 
 ## 🔐 安全设计
@@ -318,7 +322,7 @@ Prompt: "请为校园志愿活动生成招募文案..."
 
 ## 🔄 后续扩展方向
 
-1. **管理端增强**: 例如报名导出、签到录入、分页筛选等
+1. **管理端增强**: 例如报名数据导出、分页筛选、批量操作等
 2. **消息队列**: RocketMQ异步处理时长核销
 3. **分布式事务**: Seata保证跨服务事务一致性
 4. **限流降级**: Sentinel实现网关流控

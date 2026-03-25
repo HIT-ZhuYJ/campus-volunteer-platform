@@ -11,8 +11,11 @@ import org.example.vo.LoginResponse;
 import org.example.vo.UserInfo;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 public class UserService {
@@ -84,6 +87,29 @@ public class UserService {
         return userInfo;
     }
     
+    /**
+     * 管理员：查询所有志愿者时长；支持按姓名/学号/用户名模糊筛选；按累计时长降序。
+     */
+    public List<UserInfo> listVolunteerHours(String keyword) {
+        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(User::getRole, "VOLUNTEER");
+        if (StringUtils.hasText(keyword)) {
+            wrapper.and(w -> w
+                    .like(User::getRealName, keyword)
+                    .or().like(User::getStudentNo, keyword)
+                    .or().like(User::getUsername, keyword));
+        }
+        wrapper.orderByDesc(User::getTotalVolunteerHours);
+        List<User> users = userMapper.selectList(wrapper);
+        List<UserInfo> result = new ArrayList<>(users.size());
+        for (User u : users) {
+            UserInfo vo = new UserInfo();
+            BeanUtils.copyProperties(u, vo);
+            result.add(vo);
+        }
+        return result;
+    }
+
     public void updateVolunteerHours(Long userId, BigDecimal hours) {
         userMapper.addVolunteerHours(userId, hours);
     }
