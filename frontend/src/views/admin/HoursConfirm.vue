@@ -1,18 +1,20 @@
 <template>
-  <div>
+  <div class="verify-page page-container">
     <el-card>
       <template #header>
-        <h3>时长核销管理</h3>
-        <p class="header-desc">请选择<strong>已结束但尚未结项</strong>的活动，仅可对<strong>已签到</strong>且未核销的报名记录核销时长。核销完毕后请在活动管理中执行<strong>结项</strong>操作。</p>
+        <div class="head">
+          <h3>时长核销管理</h3>
+          <p>仅可选择“已结束但未结项”的活动，且只核销已签到且未核销的记录。</p>
+        </div>
       </template>
 
       <div class="toolbar">
-        <span class="toolbar-label">选择活动</span>
+        <span class="label">选择活动</span>
         <el-select
           v-model="selectedActivityId"
           filterable
           clearable
-          placeholder="请选择已结束且未结项的活动"
+          placeholder="请选择已结束且未结项活动"
           style="width: min(520px, 100%)"
           :loading="endedLoading"
           @change="onActivityChange"
@@ -32,63 +34,51 @@
           <span class="meta">结束时间 {{ formatDate(selectedActivity.endTime) }}</span>
         </div>
 
-        <el-table :data="registrations" v-loading="loading" stripe class="reg-table" empty-text="暂无报名记录">
-          <el-table-column label="志愿者姓名" width="120">
-            <template #default="{ row }">
-              {{ row.realName || '-' }}
-            </template>
-          </el-table-column>
-          <el-table-column label="学号" width="120">
-            <template #default="{ row }">
-              {{ row.studentNo || '-' }}
-            </template>
-          </el-table-column>
-          <el-table-column label="手机" prop="phone" width="130" />
-          <el-table-column label="志愿时长" width="100">
-            <template #default="{ row }">
-              {{ row.volunteerHours }} 小时
-            </template>
-          </el-table-column>
-          <el-table-column label="签到状态" width="110">
-            <template #default="{ row }">
-              <el-tag :type="row.checkInStatus === 1 ? 'success' : 'info'">
-                {{ row.checkInStatus === 1 ? '已签到' : '未签到' }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="核销状态" width="100">
-            <template #default="{ row }">
-              <el-tag :type="row.hoursConfirmed === 1 ? 'success' : 'warning'">
-                {{ row.hoursConfirmed === 1 ? '已核销' : '待核销' }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="核销时间" width="160">
-            <template #default="{ row }">
-              {{ row.confirmTime ? formatDate(row.confirmTime) : '—' }}
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="140" fixed="right">
-            <template #default="{ row }">
-              <el-button
-                v-if="row.hoursConfirmed === 0 && row.checkInStatus === 1"
-                type="primary"
-                size="small"
-                @click="handleConfirm(row)"
-              >
-                核销
-              </el-button>
-              <el-tag v-else-if="row.hoursConfirmed === 1" type="success" size="small">已核销</el-tag>
-              <span v-else class="tip-muted">需先签到</span>
-            </template>
-          </el-table-column>
-        </el-table>
-
+        <div class="table-scroll">
+          <el-table :data="registrations" v-loading="loading" stripe class="reg-table" empty-text="暂无报名记录">
+            <el-table-column label="姓名" width="120">
+              <template #default="{ row }">{{ row.realName || '-' }}</template>
+            </el-table-column>
+            <el-table-column label="学号" width="120">
+              <template #default="{ row }">{{ row.studentNo || '-' }}</template>
+            </el-table-column>
+            <el-table-column label="手机" prop="phone" width="130" />
+            <el-table-column label="志愿时长" width="100">
+              <template #default="{ row }">{{ row.volunteerHours }} 小时</template>
+            </el-table-column>
+            <el-table-column label="签到状态" width="110">
+              <template #default="{ row }">
+                <el-tag :type="row.checkInStatus === 1 ? 'success' : 'info'">{{ row.checkInStatus === 1 ? '已签到' : '未签到' }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="核销状态" width="100">
+              <template #default="{ row }">
+                <el-tag :type="row.hoursConfirmed === 1 ? 'success' : 'warning'">{{ row.hoursConfirmed === 1 ? '已核销' : '待核销' }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="核销时间" width="160">
+              <template #default="{ row }">{{ row.confirmTime ? formatDate(row.confirmTime) : '--' }}</template>
+            </el-table-column>
+            <el-table-column label="操作" width="140" fixed="right">
+              <template #default="{ row }">
+                <el-button
+                  v-if="row.hoursConfirmed === 0 && row.checkInStatus === 1"
+                  type="primary"
+                  size="small"
+                  @click="handleConfirm(row)"
+                >
+                  核销
+                </el-button>
+                <el-tag v-else-if="row.hoursConfirmed === 1" type="success" size="small">已核销</el-tag>
+                <span v-else class="tip-muted">需先签到</span>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
       </template>
 
-      <el-empty v-else-if="!endedLoading && endedActivities.length === 0" description="暂无待核销的活动（已结束且未结项）" />
-
-      <el-empty v-else-if="!endedLoading" description="请先在上方选择一场待核销的活动" />
+      <el-empty v-else-if="!endedLoading && endedActivities.length === 0" description="暂无待核销活动" />
+      <el-empty v-else-if="!endedLoading" description="请先在上方选择一个活动" />
     </el-card>
   </div>
 </template>
@@ -105,19 +95,14 @@ const selectedActivityId = ref(null)
 const loading = ref(false)
 const registrations = ref([])
 
-const selectedActivity = computed(() =>
-  endedActivities.value.find((a) => a.id === selectedActivityId.value)
-)
+const selectedActivity = computed(() => endedActivities.value.find((a) => a.id === selectedActivityId.value))
 
 const formatDate = (date) => {
-  if (!date) return '—'
+  if (!date) return '--'
   return dayjs(date).format('YYYY-MM-DD HH:mm')
 }
 
-const activityOptionLabel = (a) => {
-  const end = formatDate(a.endTime)
-  return `${a.title}（${end} 结束）`
-}
+const activityOptionLabel = (a) => `${a.title}（${formatDate(a.endTime)} 结束）`
 
 const fetchEndedActivities = async () => {
   endedLoading.value = true
@@ -154,7 +139,7 @@ const fetchRegistrations = async () => {
 
 const handleConfirm = (row) => {
   ElMessageBox.confirm(
-    `确定核销「${row.realName || '该志愿者'}」的 ${row.volunteerHours} 小时志愿时长吗？`,
+    `确定核销「${row.realName || '该志愿者'}」的 ${row.volunteerHours} 小时时长吗？`,
     '确认核销',
     {
       confirmButtonText: '确定',
@@ -170,7 +155,7 @@ const handleConfirm = (row) => {
     } catch (error) {
       console.error('核销失败:', error)
     }
-  })
+  }).catch(() => {})
 }
 
 onMounted(() => {
@@ -179,46 +164,52 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.header-desc {
-  margin: 8px 0 0;
+.verify-page {
+  width: 100%;
+}
+
+.head h3 {
+  font-size: 22px;
+}
+
+.head p {
+  margin-top: 6px;
+  color: #737990;
   font-size: 13px;
-  color: var(--el-text-color-secondary);
-  font-weight: normal;
 }
 
 .toolbar {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
   flex-wrap: wrap;
 }
 
-.toolbar-label {
+.label {
   font-size: 14px;
-  color: var(--el-text-color-regular);
+  font-weight: 600;
+  color: #4b5168;
 }
 
 .current-activity {
   margin-bottom: 12px;
-  font-size: 14px;
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
-  align-items: baseline;
+  gap: 10px;
 }
 
 .current-activity .meta {
-  color: var(--el-text-color-secondary);
+  color: #80869d;
   font-size: 13px;
-}
-
-.reg-table {
-  margin-top: 4px;
 }
 
 .tip-muted {
   font-size: 12px;
-  color: var(--el-text-color-secondary);
+  color: #8990a8;
+}
+
+.reg-table {
+  min-width: 930px;
 }
 </style>

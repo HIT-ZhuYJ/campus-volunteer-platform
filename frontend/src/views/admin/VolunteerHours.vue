@@ -1,9 +1,11 @@
 <template>
-  <div>
+  <div class="hours-page page-container">
     <el-card>
       <template #header>
-        <h3>志愿时长查询</h3>
-        <p class="header-desc">查看所有志愿者的累计时长，支持按姓名、学号或用户名搜索，按时长降序排列。</p>
+        <div class="head">
+          <h3>志愿时长查询</h3>
+          <p>支持按姓名、学号、用户名检索，默认按时长降序展示。</p>
+        </div>
       </template>
 
       <div class="toolbar">
@@ -22,25 +24,29 @@
         <el-button type="primary" @click="fetchData" :loading="loading">查询</el-button>
       </div>
 
-      <el-table :data="users" v-loading="loading" stripe>
-        <el-table-column type="index" label="#" width="55" />
-        <el-table-column label="姓名" prop="realName" width="110" />
-        <el-table-column label="学号" prop="studentNo" width="120" />
-        <el-table-column label="用户名" prop="username" width="130" />
-        <el-table-column label="手机" prop="phone" width="130" />
-        <el-table-column label="邮箱" prop="email" min-width="180" />
-        <el-table-column label="累计时长" width="140" sortable :sort-method="sortByHours">
-          <template #default="{ row }">
-            <span :class="hoursClass(row.totalVolunteerHours)">
-              {{ row.totalVolunteerHours ?? 0 }} 小时
-            </span>
-          </template>
-        </el-table-column>
-      </el-table>
+      <div class="table-scroll">
+        <el-table :data="users" v-loading="loading" stripe class="hours-table">
+          <el-table-column type="index" label="#" width="55" />
+          <el-table-column label="姓名" prop="realName" width="110" />
+          <el-table-column label="学号" prop="studentNo" width="120" />
+          <el-table-column label="用户名" prop="username" width="130" />
+          <el-table-column label="手机" prop="phone" width="130" />
+          <el-table-column label="邮箱" prop="email" min-width="180" />
+          <el-table-column label="累计时长" width="140" sortable :sort-method="sortByHours">
+            <template #default="{ row }">
+              <span :class="hoursClass(row.totalVolunteerHours)">
+                {{ row.totalVolunteerHours ?? 0 }} 小时
+              </span>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
 
       <div class="footer-stat" v-if="users.length > 0">
-        共 <strong>{{ users.length }}</strong> 名志愿者 ·
-        累计总时长 <strong>{{ totalHours }}</strong> 小时 ·
+        共 <strong>{{ users.length }}</strong> 名志愿者
+        <span>·</span>
+        累计总时长 <strong>{{ totalHours }}</strong> 小时
+        <span>·</span>
         人均 <strong>{{ avgHours }}</strong> 小时
       </div>
 
@@ -73,8 +79,7 @@ const hoursClass = (hours) => {
   return ''
 }
 
-const sortByHours = (a, b) =>
-  Number(b.totalVolunteerHours ?? 0) - Number(a.totalVolunteerHours ?? 0)
+const sortByHours = (a, b) => Number(b.totalVolunteerHours ?? 0) - Number(a.totalVolunteerHours ?? 0)
 
 const fetchData = async () => {
   loading.value = true
@@ -95,33 +100,48 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.header-desc {
-  margin: 8px 0 0;
+.hours-page {
+  width: 100%;
+}
+
+.head h3 {
+  font-size: 22px;
+}
+
+.head p {
+  margin-top: 6px;
+  color: #737990;
   font-size: 13px;
-  color: var(--el-text-color-secondary);
-  font-weight: normal;
 }
 
 .toolbar {
   display: flex;
   gap: 10px;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
   flex-wrap: wrap;
 }
 
 .footer-stat {
   margin-top: 14px;
   font-size: 13px;
-  color: var(--el-text-color-secondary);
+  color: #7f859c;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .hours-high {
   color: var(--el-color-success);
-  font-weight: bold;
+  font-weight: 700;
 }
 
 .hours-mid {
   color: var(--el-color-warning);
-  font-weight: 500;
+  font-weight: 600;
+}
+
+.hours-table {
+  min-width: 860px;
 }
 </style>

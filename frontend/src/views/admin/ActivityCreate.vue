@@ -1,41 +1,35 @@
 <template>
-  <div class="create-container">
-    <div class="page-header">
-      <h2>发布志愿活动</h2>
-      <p>填写完整的活动信息，发布后志愿者即可查看并报名</p>
-    </div>
+  <div class="create-page page-container">
+    <section class="hero">
+      <p class="mini">Create Activity</p>
+      <h1>发布新的志愿活动</h1>
+      <p>填写完整信息后发布，前台用户即可查看并报名。</p>
+    </section>
 
     <el-form :model="form" :rules="rules" ref="formRef" label-position="top" class="create-form">
-      <el-row :gutter="24">
-        <!-- 左列：基本信息 + 活动详情 -->
+      <el-row :gutter="16">
         <el-col :xs="24" :md="15">
-          <!-- 基本信息 -->
-          <el-card class="form-section" shadow="never">
-            <template #header>
-              <div class="section-title">
-                <el-icon class="section-icon"><InfoFilled /></el-icon>
-                基本信息
-              </div>
-            </template>
+          <el-card class="section" shadow="never">
+            <template #header><h3>基本信息</h3></template>
 
             <el-form-item label="活动标题" prop="title">
               <el-input v-model="form.title" placeholder="请输入活动标题" size="large" clearable />
             </el-form-item>
 
-            <el-row :gutter="16">
-              <el-col :span="12">
+            <el-row :gutter="12">
+              <el-col :xs="24" :sm="12">
                 <el-form-item label="活动类型" prop="category">
                   <el-select v-model="form.category" placeholder="请选择活动类型" size="large" style="width:100%">
                     <el-option label="校园服务" value="校园服务" />
                     <el-option label="公益助学" value="公益助学" />
-                    <el-option label="社区关怀" value="社区关怀" />
+                    <el-option label="社区关爱" value="社区关爱" />
                     <el-option label="大型活动" value="大型活动" />
                     <el-option label="环保公益" value="环保公益" />
                     <el-option label="应急救援" value="应急救援" />
                   </el-select>
                 </el-form-item>
               </el-col>
-              <el-col :span="12">
+              <el-col :xs="24" :sm="12">
                 <el-form-item label="服务地点" prop="location">
                   <el-input v-model="form.location" placeholder="请输入服务地点" size="large" clearable>
                     <template #prefix><el-icon><Location /></el-icon></template>
@@ -44,8 +38,8 @@
               </el-col>
             </el-row>
 
-            <el-row :gutter="16">
-              <el-col :span="12">
+            <el-row :gutter="12">
+              <el-col :xs="24" :sm="12">
                 <el-form-item label="招募人数" prop="maxParticipants">
                   <el-input-number
                     v-model="form.maxParticipants"
@@ -56,7 +50,7 @@
                   />
                 </el-form-item>
               </el-col>
-              <el-col :span="12">
+              <el-col :xs="24" :sm="12">
                 <el-form-item label="志愿时长（小时）" prop="volunteerHours">
                   <el-input-number
                     v-model="form.volunteerHours"
@@ -70,22 +64,20 @@
             </el-row>
           </el-card>
 
-          <!-- 活动详情 -->
-          <el-card class="form-section" shadow="never">
+          <el-card class="section" shadow="never">
             <template #header>
-              <div class="section-title">
-                <el-icon class="section-icon"><Document /></el-icon>
-                活动介绍
-                <div class="ai-gen-bar">
+              <div class="section-head">
+                <h3>活动介绍</h3>
+                <div class="ai-bar">
                   <el-input
                     v-model="aiKeywords"
-                    placeholder="输入关键词辅助 AI 生成，如：图书馆、值班"
+                    placeholder="输入关键词辅助AI生成，如：图书馆、值班"
                     size="small"
-                    style="width: 240px"
+                    class="ai-input"
                     clearable
                   />
                   <el-button type="primary" size="small" :loading="aiLoading" @click="handleAIGenerate">
-                    <el-icon><MagicStick /></el-icon> AI 生成
+                    <el-icon><MagicStick /></el-icon>AI生成
                   </el-button>
                 </div>
               </div>
@@ -95,25 +87,19 @@
                 v-model="form.description"
                 type="textarea"
                 :rows="10"
-                placeholder="请描述活动内容、志愿者要求、注意事项等"
+                placeholder="描述活动内容、志愿者要求、注意事项等"
                 resize="vertical"
               />
             </el-form-item>
           </el-card>
         </el-col>
 
-        <!-- 右列：时间设置 -->
         <el-col :xs="24" :md="9">
-          <el-card class="form-section time-section" shadow="never">
-            <template #header>
-              <div class="section-title">
-                <el-icon class="section-icon"><Calendar /></el-icon>
-                时间安排
-              </div>
-            </template>
+          <el-card class="section" shadow="never">
+            <template #header><h3>时间安排</h3></template>
 
             <div class="time-group">
-              <div class="time-group-label">活动时间</div>
+              <div class="time-title">活动时间</div>
               <el-form-item label="开始时间" prop="startTime">
                 <el-date-picker
                   v-model="form.startTime"
@@ -139,12 +125,12 @@
             <el-divider />
 
             <div class="time-group">
-              <div class="time-group-label">招募窗口</div>
+              <div class="time-title">招募窗口</div>
               <el-form-item label="招募开始" prop="registrationStartTime">
                 <el-date-picker
                   v-model="form.registrationStartTime"
                   type="datetime"
-                  placeholder="招募开放时间"
+                  placeholder="招募开始时间"
                   format="YYYY-MM-DD HH:mm"
                   value-format="YYYY-MM-DDTHH:mm:ss"
                   style="width:100%"
@@ -154,7 +140,7 @@
                 <el-date-picker
                   v-model="form.registrationDeadline"
                   type="datetime"
-                  placeholder="报名截止（须 ≤ 活动开始）"
+                  placeholder="报名截止时间"
                   format="YYYY-MM-DD HH:mm"
                   value-format="YYYY-MM-DDTHH:mm:ss"
                   style="width:100%"
@@ -162,13 +148,9 @@
               </el-form-item>
             </div>
 
-            <div class="time-tip">
-              <el-icon><InfoFilled /></el-icon>
-              招募开始 &lt; 报名截止 ≤ 活动开始 &lt; 活动结束
-            </div>
+            <div class="time-tip">招募开始 &lt; 报名截止 ≤ 活动开始 &lt; 活动结束</div>
           </el-card>
 
-          <!-- 操作按钮 -->
           <div class="action-bar">
             <el-button size="large" @click="handleReset" style="flex:1">重置</el-button>
             <el-button type="primary" size="large" :loading="loading" @click="handleSubmit" style="flex:2">
@@ -207,12 +189,12 @@ const form = reactive({
 })
 
 const rules = {
-  title:       [{ required: true, message: '请输入活动标题', trigger: 'blur' }],
-  category:    [{ required: true, message: '请选择活动类型', trigger: 'change' }],
-  location:    [{ required: true, message: '请输入服务地点', trigger: 'blur' }],
+  title: [{ required: true, message: '请输入活动标题', trigger: 'blur' }],
+  category: [{ required: true, message: '请选择活动类型', trigger: 'change' }],
+  location: [{ required: true, message: '请输入服务地点', trigger: 'blur' }],
   description: [{ required: true, message: '请输入活动详情', trigger: 'blur' }],
   maxParticipants: [{ required: true, trigger: 'blur' }],
-  volunteerHours:  [{ required: true, trigger: 'blur' }],
+  volunteerHours: [{ required: true, trigger: 'blur' }],
   startTime: [
     { required: true, message: '请选择活动开始时间', trigger: 'change' },
     {
@@ -267,11 +249,11 @@ const handleAIGenerate = async () => {
   }
   aiLoading.value = true
   try {
-    const res = await generateDescription({ 
-      location: form.location, 
-      category: form.category, 
+    const res = await generateDescription({
+      location: form.location,
+      category: form.category,
       keywords: aiKeywords.value,
-      volunteerHours: form.volunteerHours 
+      volunteerHours: form.volunteerHours
     })
     form.description = res.data
     ElMessage.success('AI 生成成功')
@@ -303,79 +285,100 @@ const handleReset = () => {
 </script>
 
 <style scoped>
-.create-container { max-width: 1100px; margin: 0 auto; }
-
-.page-header {
-  margin-bottom: 20px;
-}
-.page-header h2 {
-  font-size: 22px;
-  font-weight: 700;
-  color: #303133;
-  margin: 0 0 6px;
-}
-.page-header p {
-  font-size: 13px;
-  color: #909399;
-  margin: 0;
+.create-page {
+  width: 100%;
+  margin: 0 auto;
 }
 
-.form-section {
-  border-radius: 12px;
-  border: 1px solid #f0f0f0;
+.hero {
   margin-bottom: 16px;
+  border-radius: 22px;
+  padding: 24px 22px;
+  color: #fff;
+  background: linear-gradient(130deg, var(--cv-primary), var(--cv-primary-weak));
 }
 
-.section-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 15px;
-  font-weight: 600;
-  color: #303133;
-  flex-wrap: wrap;
-}
-
-.section-icon { color: #667eea; }
-
-.ai-gen-bar {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-/* 时间分组 */
-.time-group-label {
+.hero .mini {
   font-size: 12px;
-  font-weight: 600;
-  color: #909399;
+  letter-spacing: 1.2px;
+  opacity: 0.9;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 12px;
 }
 
-.time-section :deep(.el-form-item__label) {
-  font-size: 13px;
-  color: #606266;
-  padding-bottom: 4px;
+.hero h1 {
+  margin: 8px 0;
+  font-size: clamp(26px, 4vw, 34px);
+}
+
+.section {
+  margin-bottom: 14px;
+}
+
+.section h3 {
+  font-size: 20px;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ai-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ai-input {
+  width: min(320px, 100%);
+}
+
+.time-title {
+  margin-bottom: 10px;
+  font-size: 12px;
+  color: #7f859c;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  font-weight: 700;
 }
 
 .time-tip {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  border-radius: 12px;
+  padding: 8px 10px;
   font-size: 12px;
-  color: #909399;
-  background: #f8f9fc;
-  padding: 10px 12px;
-  border-radius: 8px;
-  margin-top: 4px;
+  color: #767c93;
+  background: #f3f2ff;
 }
 
 .action-bar {
   display: flex;
-  gap: 12px;
-  margin-top: 4px;
+  gap: 10px;
+}
+
+@media (max-width: 560px) {
+  .action-bar {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 900px) {
+  .hero h1 {
+    font-size: 28px;
+  }
+
+  .section-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .ai-bar {
+    width: 100%;
+  }
 }
 </style>
+
+
+
+

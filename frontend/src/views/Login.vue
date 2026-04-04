@@ -1,24 +1,23 @@
 <template>
-  <div class="login-container">
-    <div class="login-background">
-      <div class="shape shape-1"></div>
-      <div class="shape shape-2"></div>
-      <div class="shape shape-3"></div>
+  <div class="auth-shell">
+    <div class="auth-bg">
+      <div class="orb orb-1"></div>
+      <div class="orb orb-2"></div>
     </div>
-    
-    <div class="login-box">
-      <div class="login-header">
-        <div class="logo">
-          <el-icon :size="50" color="#667eea"><Trophy /></el-icon>
+
+    <div class="auth-card">
+      <div class="auth-brand">
+        <div class="brand-icon">
+          <el-icon :size="24"><Trophy /></el-icon>
         </div>
-        <h1>校园志愿服务平台</h1>
-        <p>让爱心传递，让奉献闪光</p>
+        <h1>Campus Volunteer Service</h1>
+        <p>连接校园热情，记录真实公益行动</p>
       </div>
-      
-      <el-form :model="form" :rules="rules" ref="formRef" class="login-form">
+
+      <el-form :model="form" :rules="rules" ref="formRef" class="auth-form">
         <el-form-item prop="username">
-          <el-input 
-            v-model="form.username" 
+          <el-input
+            v-model="form.username"
             placeholder="请输入用户名"
             size="large"
             clearable
@@ -28,11 +27,11 @@
             </template>
           </el-input>
         </el-form-item>
-        
+
         <el-form-item prop="password">
-          <el-input 
-            v-model="form.password" 
-            type="password" 
+          <el-input
+            v-model="form.password"
+            type="password"
             placeholder="请输入密码"
             size="large"
             show-password
@@ -43,39 +42,39 @@
             </template>
           </el-input>
         </el-form-item>
-        
+
         <el-form-item>
-          <el-button 
-            type="primary" 
+          <el-button
+            type="primary"
             size="large"
-            class="login-button" 
-            @click="handleLogin" 
+            class="submit-btn"
+            @click="handleLogin"
             :loading="loading"
           >
-            <span v-if="!loading">登 录</span>
+            登录
           </el-button>
         </el-form-item>
-        
+
         <el-form-item>
-          <el-button 
+          <el-button
             size="large"
-            class="register-button" 
+            class="ghost-btn"
             @click="$router.push('/register')"
           >
             注册新账号
           </el-button>
         </el-form-item>
       </el-form>
-      
-      <div class="login-footer">
-        <el-divider>快速登录</el-divider>
-        <div class="test-accounts">
-          <el-tag 
-            v-for="account in testAccounts" 
+
+      <div class="quick-login">
+        <el-divider>快捷登录</el-divider>
+        <div class="quick-tags">
+          <el-tag
+            v-for="account in testAccounts"
             :key="account.username"
             :type="account.type"
             effect="plain"
-            class="account-tag"
+            class="quick-tag"
             @click="quickLogin(account)"
           >
             {{ account.label }}
@@ -123,15 +122,14 @@ const quickLogin = (account) => {
 const handleLogin = async () => {
   await formRef.value.validate()
   loading.value = true
-  
+
   try {
     const res = await login(form)
     userStore.setToken(res.data.token)
     userStore.setUserInfo(res.data.userInfo)
-    
+
     ElMessage.success('登录成功')
-    
-    // 根据角色跳转
+
     if (res.data.userInfo.role === 'ADMIN') {
       router.push('/admin/activities')
     } else {
@@ -146,230 +144,135 @@ const handleLogin = async () => {
 </script>
 
 <style scoped>
-.login-container {
-  position: relative;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+.auth-shell {
   min-height: 100vh;
-  overflow: hidden;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
-
-.login-background {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-}
-
-.shape {
-  position: absolute;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
-  animation: float 20s infinite ease-in-out;
-}
-
-.shape-1 {
-  width: 300px;
-  height: 300px;
-  top: -100px;
-  left: -100px;
-  animation-delay: 0s;
-}
-
-.shape-2 {
-  width: 200px;
-  height: 200px;
-  bottom: -50px;
-  right: -50px;
-  animation-delay: 5s;
-}
-
-.shape-3 {
-  width: 150px;
-  height: 150px;
-  top: 50%;
-  right: 10%;
-  animation-delay: 10s;
-}
-
-@keyframes float {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(30px, -30px) scale(1.1); }
-  66% { transform: translate(-20px, 20px) scale(0.9); }
-}
-
-.login-box {
+  display: grid;
+  place-items: center;
+  padding: clamp(18px, 5vw, 30px) 14px;
+  background:
+    radial-gradient(circle at 0% 0%, #dce8ff 0%, transparent 38%),
+    radial-gradient(circle at 100% 100%, #d9f4e7 0%, transparent 30%),
+    var(--cv-bg);
   position: relative;
-  width: 90%;
-  max-width: 450px;
-  padding: 50px 40px;
-  background: rgba(255, 255, 255, 0.95);
+  overflow: hidden;
+}
+
+.auth-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.orb {
+  position: absolute;
+  border-radius: 999px;
+}
+
+.orb-1 {
+  width: clamp(180px, 26vw, 280px);
+  height: clamp(180px, 26vw, 280px);
+  background: rgba(47, 126, 244, 0.2);
+  top: -60px;
+  right: -40px;
+}
+
+.orb-2 {
+  width: clamp(220px, 30vw, 340px);
+  height: clamp(220px, 30vw, 340px);
+  background: rgba(15, 139, 95, 0.14);
+  left: -120px;
+  bottom: -130px;
+}
+
+.auth-card {
+  position: relative;
+  z-index: 2;
+  width: min(520px, 100%);
+  padding: clamp(22px, 4vw, 36px) clamp(16px, 4vw, 30px);
+  background: rgba(255, 255, 255, 0.84);
   backdrop-filter: blur(10px);
-  border-radius: 20px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  animation: slideUp 0.6s ease-out;
+  border: 1px solid rgba(201, 214, 243, 0.56);
+  border-radius: 24px;
+  box-shadow: 0 26px 44px rgba(13, 71, 217, 0.16);
 }
 
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.login-header {
+.auth-brand {
   text-align: center;
-  margin-bottom: 40px;
-}
-
-.logo {
-  display: inline-block;
-  width: 80px;
-  height: 80px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 20px;
-  box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.05); }
-}
-
-.login-header h1 {
-  font-size: 28px;
-  font-weight: 700;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  margin: 0 0 10px 0;
-}
-
-.login-header p {
-  font-size: 14px;
-  color: #666;
-  margin: 0;
-}
-
-.login-form :deep(.el-form-item) {
   margin-bottom: 24px;
 }
 
-.login-form :deep(.el-input__wrapper) {
-  box-shadow: 0 0 0 1px #e0e0e0 inset;
-  border-radius: 12px;
-  padding: 8px 15px;
-  transition: all 0.3s;
+.brand-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  margin: 0 auto 14px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: linear-gradient(135deg, var(--cv-primary), var(--cv-primary-weak));
 }
 
-.login-form :deep(.el-input__wrapper:hover) {
-  box-shadow: 0 0 0 1px #667eea inset;
+.auth-brand h1 {
+  font-size: clamp(22px, 4.8vw, 30px);
+  line-height: 1.2;
+  margin-bottom: 8px;
+  color: var(--cv-text);
 }
 
-.login-form :deep(.el-input__wrapper.is-focus) {
-  box-shadow: 0 0 0 2px #667eea inset;
+.auth-brand p {
+  font-size: 13px;
+  color: var(--cv-text-soft);
 }
 
-.login-button {
+.auth-form :deep(.el-form-item) {
+  margin-bottom: 16px;
+}
+
+.submit-btn,
+.ghost-btn {
   width: 100%;
-  height: 48px;
-  border-radius: 12px;
-  font-size: 16px;
-  font-weight: 600;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border: none;
-  transition: all 0.3s;
+  height: 46px;
+  border-radius: 999px;
+  font-weight: 700;
 }
 
-.login-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+.ghost-btn {
+  color: var(--cv-primary);
+  border: 1px solid rgba(13, 71, 217, 0.28);
+  background: #fff;
 }
 
-.register-button {
-  width: 100%;
-  height: 48px;
-  border-radius: 12px;
-  font-size: 16px;
-  border: 2px solid #e0e0e0;
-  background: white;
-  color: #666;
-  transition: all 0.3s;
+.quick-login {
+  margin-top: 6px;
 }
 
-.register-button:hover {
-  border-color: #667eea;
-  color: #667eea;
-  background: #f5f7ff;
-}
-
-.login-footer {
-  margin-top: 30px;
-}
-
-.test-accounts {
+.quick-tags {
   display: flex;
   justify-content: center;
-  gap: 12px;
   flex-wrap: wrap;
+  gap: 10px;
 }
 
-.account-tag {
+.quick-tag {
   cursor: pointer;
-  padding: 8px 16px;
-  border-radius: 20px;
-  transition: all 0.3s;
-  font-size: 13px;
+  border-radius: 999px;
+  padding: 8px 12px;
 }
 
-.account-tag:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
+@media (max-width: 520px) {
+  .quick-tags {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
 
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .login-box {
-    width: 95%;
-    padding: 40px 30px;
-  }
-  
-  .login-header h1 {
-    font-size: 24px;
-  }
-  
-  .shape {
-    display: none;
+  .quick-tag {
+    text-align: center;
   }
 }
 
-@media (max-width: 480px) {
-  .login-box {
-    padding: 30px 20px;
-  }
-  
-  .login-header h1 {
-    font-size: 20px;
-  }
-  
-  .logo {
-    width: 60px;
-    height: 60px;
-  }
-  
-  .test-accounts {
-    flex-direction: column;
+@media (max-width: 380px) {
+  .quick-tags {
+    grid-template-columns: 1fr;
   }
 }
 </style>

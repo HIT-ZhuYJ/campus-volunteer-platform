@@ -1,118 +1,73 @@
 <template>
-  <div class="layout">
+  <div class="layout-shell">
     <el-container>
-      <el-header class="header">
-        <div class="header-left">
-          <div class="logo">
-            <el-icon :size="24" color="#667eea"><Trophy /></el-icon>
-          </div>
-          <h2 class="site-title">志愿服务平台</h2>
-        </div>
-        
-        <!-- 桌面端菜单 -->
-        <el-menu
-          v-if="!isMobile"
-          :default-active="activeMenu"
-          mode="horizontal"
-          :ellipsis="false"
-          @select="handleMenuSelect"
-          class="desktop-menu"
-        >
-          <el-menu-item index="/home">
-            <el-icon><HomeFilled /></el-icon>
-            <span>首页</span>
-          </el-menu-item>
-          <el-menu-item index="/activities">
-            <el-icon><Flag /></el-icon>
-            <span>志愿活动</span>
-          </el-menu-item>
-          <el-menu-item index="/my">
-            <el-icon><Stamp /></el-icon>
-            <span>我的志愿足迹</span>
-          </el-menu-item>
-          <el-menu-item v-if="userStore.isAdmin" index="/admin/activities">
-            <el-icon><Setting /></el-icon>
-            <span>管理后台</span>
-          </el-menu-item>
-        </el-menu>
-        
-        <div class="header-right">
-          <el-dropdown @command="handleCommand" v-if="!isMobile">
-            <span class="user-info">
-              <el-avatar :size="32" :style="{ background: '#667eea' }">
-                {{ userStore.userInfo.realName?.charAt(0) }}
-              </el-avatar>
-              <span class="user-name">{{ userStore.userInfo.realName }}</span>
+      <el-header class="header glass-nav">
+        <div class="header-inner page-container">
+          <div class="brand" @click="router.push('/home')">
+            <span class="brand-dot">
+              <el-icon><Trophy /></el-icon>
             </span>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item command="profile">
-                  <el-icon><User /></el-icon>
-                  个人资料
-                </el-dropdown-item>
-                <el-dropdown-item command="myRegistrations" divided>
-                  <el-icon><List /></el-icon>
-                  我的报名
-                </el-dropdown-item>
-                <el-dropdown-item command="logout">
-                  <el-icon><SwitchButton /></el-icon>
-                  退出登录
-                </el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
-          
-          <!-- 移动端菜单按钮 -->
-          <el-button v-if="isMobile" text @click="drawer = true">
-            <el-icon :size="24"><Menu /></el-icon>
-          </el-button>
+            <span class="brand-text">Campus Volunteer</span>
+          </div>
+
+          <el-menu
+            v-if="!isMobile"
+            :default-active="activeMenu"
+            mode="horizontal"
+            :ellipsis="false"
+            @select="handleMenuSelect"
+            class="desktop-menu"
+          >
+            <el-menu-item index="/home">首页</el-menu-item>
+            <el-menu-item index="/activities">活动</el-menu-item>
+            <el-menu-item index="/my">我的志愿足迹</el-menu-item>
+            <el-menu-item v-if="userStore.isAdmin" index="/admin/activities">管理后台</el-menu-item>
+          </el-menu>
+
+          <div class="header-right">
+            <el-dropdown v-if="!isMobile" @command="handleCommand">
+              <span class="user-pill">
+                <el-avatar :size="30" class="avatar">{{ displayName.charAt(0) || 'U' }}</el-avatar>
+                <span class="user-name">{{ displayName }}</span>
+              </span>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="profile">个人资料</el-dropdown-item>
+                  <el-dropdown-item command="myRegistrations">我的报名</el-dropdown-item>
+                  <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+
+            <el-button v-else text class="menu-btn" @click="drawer = true">
+              <el-icon :size="22"><Menu /></el-icon>
+            </el-button>
+          </div>
         </div>
       </el-header>
-      
+
       <el-main class="main">
         <slot />
       </el-main>
-      
-      <!-- 移动端抽屉菜单 -->
-      <el-drawer v-model="drawer" direction="rtl" :size="280">
+
+      <el-drawer v-model="drawer" direction="rtl" :size="'min(84vw, 320px)'">
         <template #header>
           <div class="drawer-header">
-            <el-avatar :size="60" :style="{ background: '#667eea' }">
-              {{ userStore.userInfo.realName?.charAt(0) }}
-            </el-avatar>
-            <div class="drawer-user-info">
-              <div class="drawer-user-name">{{ userStore.userInfo.realName }}</div>
-              <div class="drawer-user-role">{{ userStore.isAdmin ? '管理员' : '志愿者' }}</div>
-            </div>
+            <el-avatar :size="56" class="avatar">{{ displayName.charAt(0) || 'U' }}</el-avatar>
+            <div class="drawer-name">{{ displayName }}</div>
+            <div class="drawer-role">{{ userStore.isAdmin ? '管理员' : '志愿者' }}</div>
           </div>
         </template>
-        
-        <el-menu :default-active="activeMenu" @select="handleMobileMenuSelect">
-          <el-menu-item index="/home">
-            <el-icon><HomeFilled /></el-icon>
-            <span>首页</span>
-          </el-menu-item>
-          <el-menu-item index="/activities">
-            <el-icon><Flag /></el-icon>
-            <span>志愿活动</span>
-          </el-menu-item>
-          <el-menu-item index="/my">
-            <el-icon><Stamp /></el-icon>
-            <span>我的志愿足迹</span>
-          </el-menu-item>
-          <el-menu-item v-if="userStore.isAdmin" index="/admin/activities">
-            <el-icon><Setting /></el-icon>
-            <span>管理后台</span>
-          </el-menu-item>
+
+        <el-menu :default-active="activeMenu" @select="handleMobileMenuSelect" class="drawer-menu">
+          <el-menu-item index="/home">首页</el-menu-item>
+          <el-menu-item index="/activities">活动</el-menu-item>
+          <el-menu-item index="/my">我的志愿足迹</el-menu-item>
+          <el-menu-item v-if="userStore.isAdmin" index="/admin/activities">管理后台</el-menu-item>
           <el-divider />
-          <el-menu-item @click="handleCommand('myRegistrations')">
-            <el-icon><List /></el-icon>
-            <span>我的报名</span>
-          </el-menu-item>
-          <el-menu-item @click="handleCommand('logout')">
-            <el-icon><SwitchButton /></el-icon>
-            <span>退出登录</span>
-          </el-menu-item>
+          <el-menu-item @click="handleCommand('profile')">个人资料</el-menu-item>
+          <el-menu-item @click="handleCommand('myRegistrations')">我的报名</el-menu-item>
+          <el-menu-item @click="handleCommand('logout')">退出登录</el-menu-item>
         </el-menu>
       </el-drawer>
     </el-container>
@@ -132,9 +87,10 @@ const drawer = ref(false)
 const isMobile = ref(false)
 
 const activeMenu = computed(() => route.path)
+const displayName = computed(() => userStore.userInfo.realName || '用户')
 
 const checkMobile = () => {
-  isMobile.value = window.innerWidth < 768
+  isMobile.value = window.innerWidth < 920
 }
 
 onMounted(() => {
@@ -156,6 +112,7 @@ const handleMobileMenuSelect = (index) => {
 }
 
 const handleCommand = (command) => {
+  drawer.value = false
   if (command === 'logout') {
     ElMessageBox.confirm('确定要退出登录吗？', '提示', {
       confirmButtonText: '确定',
@@ -175,177 +132,155 @@ const handleCommand = (command) => {
 </script>
 
 <style scoped>
-.layout {
+.layout-shell {
   min-height: 100vh;
-  background: #f5f7fa;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(47, 126, 244, 0.1), transparent 38%),
+    radial-gradient(circle at 100% 100%, rgba(15, 139, 95, 0.08), transparent 32%),
+    var(--cv-bg);
 }
 
 .header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  border-bottom: 1px solid rgba(201, 214, 243, 0.62);
+  background: rgba(244, 248, 255, 0.78);
+  padding: 0;
+}
+
+.header-inner {
+  min-height: 60px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: white;
-  border-bottom: 1px solid #e6e6e6;
-  padding: 0 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  position: sticky;
-  top: 0;
-  z-index: 100;
+  padding: 0 clamp(12px, 2vw, 22px);
+  gap: 14px;
 }
 
-.header-left {
+.glass-nav {
+  backdrop-filter: blur(14px);
+}
+
+.brand {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  cursor: pointer;
+  flex-shrink: 0;
 }
 
-.logo {
-  width: 40px;
-  height: 40px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 10px;
+.brand-dot {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  color: #fff;
+  background: linear-gradient(135deg, var(--cv-primary), var(--cv-primary-weak));
+  box-shadow: 0 8px 18px rgba(13, 71, 217, 0.32);
 }
 
-.site-title {
-  font-size: 18px;
-  font-weight: 600;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+.brand-text {
+  font-family: 'Manrope', 'Noto Sans SC', sans-serif;
+  font-weight: 800;
+  font-size: clamp(16px, 2vw, 20px);
+  background: linear-gradient(90deg, var(--cv-primary), var(--cv-primary-weak));
   -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  margin: 0;
-  white-space: nowrap;
+  color: transparent;
 }
 
 .desktop-menu {
   flex: 1;
-  margin: 0 40px;
+  min-width: 0;
+  margin: 0 8px;
   border-bottom: none;
+  background: transparent;
 }
 
 .desktop-menu :deep(.el-menu-item) {
-  font-weight: 500;
-  padding: 0 20px;
+  border-bottom: none;
+  color: #3f4968;
+  font-weight: 700;
 }
 
 .desktop-menu :deep(.el-menu-item.is-active) {
-  color: #667eea;
-  background: linear-gradient(to bottom, transparent 85%, #667eea 85%);
+  color: var(--cv-primary);
+  background: linear-gradient(to bottom, transparent 78%, rgba(13, 71, 217, 0.14) 78%);
 }
 
 .header-right {
-  margin-left: auto;
+  flex-shrink: 0;
 }
 
-.user-info {
+.user-pill {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: #e9f0ff;
   cursor: pointer;
-  padding: 8px 16px;
-  border-radius: 20px;
-  transition: all 0.3s;
-  background: #f5f7fa;
 }
 
-.user-info:hover {
-  background: #e8ecf1;
-  transform: translateY(-1px);
+.avatar {
+  background: linear-gradient(135deg, var(--cv-primary), var(--cv-primary-weak));
 }
 
 .user-name {
-  font-weight: 500;
-  color: #333;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #27304e;
+  font-weight: 700;
+}
+
+.menu-btn {
+  color: var(--cv-primary);
 }
 
 .main {
   min-height: calc(100vh - 60px);
-  padding: 24px;
-  animation: fadeIn 0.3s ease-out;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  padding: clamp(14px, 2.5vw, 24px);
 }
 
 .drawer-header {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 20px 0;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  margin: -20px -20px 20px -20px;
-  border-radius: 0;
-}
-
-.drawer-user-info {
-  margin-top: 15px;
+  padding: 12px 0;
   text-align: center;
-  color: white;
 }
 
-.drawer-user-name {
-  font-size: 18px;
-  font-weight: 600;
-  margin-bottom: 5px;
+.drawer-name {
+  margin-top: 10px;
+  font-size: 17px;
+  font-weight: 700;
 }
 
-.drawer-user-role {
-  font-size: 14px;
-  opacity: 0.9;
+.drawer-role {
+  font-size: 13px;
+  color: #62667a;
+  margin-top: 2px;
 }
 
-/* 响应式设计 */
-@media (max-width: 1024px) {
-  .desktop-menu {
-    margin: 0 20px;
-  }
-  
-  .desktop-menu :deep(.el-menu-item) {
-    padding: 0 15px;
-  }
+.drawer-menu {
+  border-right: none;
 }
 
 @media (max-width: 768px) {
-  .header {
-    padding: 0 16px;
+  .header-inner {
+    min-height: 56px;
+    padding: 0 14px;
   }
-  
-  .site-title {
-    font-size: 16px;
-  }
-  
-  .logo {
-    width: 36px;
-    height: 36px;
-  }
-  
+
   .main {
-    padding: 16px;
+    padding: 14px;
   }
 }
 
-@media (max-width: 480px) {
-  .header {
-    padding: 0 12px;
-  }
-  
-  .site-title {
-    font-size: 14px;
-  }
-  
-  .main {
-    padding: 12px;
+@media (max-width: 460px) {
+  .brand-text {
+    display: none;
   }
 }
 </style>
