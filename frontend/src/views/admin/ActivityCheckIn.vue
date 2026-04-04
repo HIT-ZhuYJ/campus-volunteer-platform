@@ -1,15 +1,15 @@
 <template>
-  <div>
+  <div class="verify-page page-container">
     <el-card>
       <template #header>
-        <h3>活动签到</h3>
-        <p class="header-desc">
-          仅列出<strong>已开始且未结束</strong>（进行中）的活动；未开始或已结束的活动不会出现在此。活动结束后请至「时长核销」。
-        </p>
+        <div class="head">
+          <h3>活动签到</h3>
+          <p>仅展示“已开始且未结束”的活动，未开始或已结束活动不在此页出现。</p>
+        </div>
       </template>
 
       <div class="toolbar">
-        <span class="toolbar-label">选择活动</span>
+        <span class="label">选择活动</span>
         <el-select
           v-model="selectedActivityId"
           filterable
@@ -31,57 +31,43 @@
       <template v-if="selectedActivityId">
         <div v-if="selectedActivity" class="current-activity">
           <span>当前活动：{{ selectedActivity.title }}</span>
-          <span class="meta">开始 {{ formatDate(selectedActivity.startTime) }} · 结束 {{ formatDate(selectedActivity.endTime) }}</span>
+          <span class="meta">{{ formatDate(selectedActivity.startTime) }} ~ {{ formatDate(selectedActivity.endTime) }}</span>
         </div>
 
-        <el-table :data="registrations" v-loading="loading" stripe class="reg-table" empty-text="暂无报名记录">
-          <el-table-column label="志愿者姓名" width="120">
-            <template #default="{ row }">
-              {{ row.realName || '-' }}
-            </template>
-          </el-table-column>
-          <el-table-column label="学号" width="120">
-            <template #default="{ row }">
-              {{ row.studentNo || '-' }}
-            </template>
-          </el-table-column>
-          <el-table-column label="手机" prop="phone" width="130" />
-          <el-table-column label="报名时间" width="170">
-            <template #default="{ row }">
-              {{ formatDate(row.registrationTime) }}
-            </template>
-          </el-table-column>
-          <el-table-column label="签到状态" width="110">
-            <template #default="{ row }">
-              <el-tag :type="row.checkInStatus === 1 ? 'success' : 'info'">
-                {{ row.checkInStatus === 1 ? '已签到' : '未签到' }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="签到时间" width="170">
-            <template #default="{ row }">
-              {{ row.checkInTime ? formatDate(row.checkInTime) : '—' }}
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="120" fixed="right">
-            <template #default="{ row }">
-              <el-button
-                v-if="row.checkInStatus !== 1"
-                type="primary"
-                size="small"
-                @click="handleCheckIn(row)"
-              >
-                标记签到
-              </el-button>
-              <el-tag v-else type="success" size="small">已签到</el-tag>
-            </template>
-          </el-table-column>
-        </el-table>
+        <div class="table-scroll">
+          <el-table :data="registrations" v-loading="loading" stripe class="reg-table" empty-text="暂无报名记录">
+            <el-table-column label="姓名" width="120">
+              <template #default="{ row }">{{ row.realName || '-' }}</template>
+            </el-table-column>
+            <el-table-column label="学号" width="120">
+              <template #default="{ row }">{{ row.studentNo || '-' }}</template>
+            </el-table-column>
+            <el-table-column label="手机" prop="phone" width="130" />
+            <el-table-column label="报名时间" width="170">
+              <template #default="{ row }">{{ formatDate(row.registrationTime) }}</template>
+            </el-table-column>
+            <el-table-column label="签到状态" width="110">
+              <template #default="{ row }">
+                <el-tag :type="row.checkInStatus === 1 ? 'success' : 'info'">{{ row.checkInStatus === 1 ? '已签到' : '未签到' }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="签到时间" width="170">
+              <template #default="{ row }">{{ row.checkInTime ? formatDate(row.checkInTime) : '--' }}</template>
+            </el-table-column>
+            <el-table-column label="操作" width="120" fixed="right">
+              <template #default="{ row }">
+                <el-button v-if="row.checkInStatus !== 1" type="primary" size="small" @click="handleCheckIn(row)">
+                  标记签到
+                </el-button>
+                <el-tag v-else type="success" size="small">已签到</el-tag>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
       </template>
 
-      <el-empty v-else-if="!activitiesLoading && checkInActivities.length === 0" description="当前没有进行中的活动（未开始、已结束或已取消的活动不显示）" />
-
-      <el-empty v-else-if="!activitiesLoading" description="请先在上方选择一场活动" />
+      <el-empty v-else-if="!activitiesLoading && checkInActivities.length === 0" description="当前没有可签到活动" />
+      <el-empty v-else-if="!activitiesLoading" description="请先在上方选择一个活动" />
     </el-card>
   </div>
 </template>
@@ -98,12 +84,10 @@ const selectedActivityId = ref(null)
 const loading = ref(false)
 const registrations = ref([])
 
-const selectedActivity = computed(() =>
-  checkInActivities.value.find((a) => a.id === selectedActivityId.value)
-)
+const selectedActivity = computed(() => checkInActivities.value.find((a) => a.id === selectedActivityId.value))
 
 const formatDate = (date) => {
-  if (!date) return '—'
+  if (!date) return '--'
   return dayjs(date).format('YYYY-MM-DD HH:mm')
 }
 
@@ -172,41 +156,47 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.header-desc {
-  margin: 8px 0 0;
+.verify-page {
+  width: 100%;
+}
+
+.head h3 {
+  font-size: 22px;
+}
+
+.head p {
+  margin-top: 6px;
+  color: #737990;
   font-size: 13px;
-  color: var(--el-text-color-secondary);
-  font-weight: normal;
 }
 
 .toolbar {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
   flex-wrap: wrap;
 }
 
-.toolbar-label {
+.label {
   font-size: 14px;
-  color: var(--el-text-color-regular);
+  font-weight: 600;
+  color: #4b5168;
 }
 
 .current-activity {
   margin-bottom: 12px;
-  font-size: 14px;
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
-  align-items: baseline;
+  gap: 10px;
 }
 
-.current-activity .meta {
-  color: var(--el-text-color-secondary);
+.meta {
+  color: #80869d;
   font-size: 13px;
 }
 
 .reg-table {
-  margin-top: 4px;
+  min-width: 940px;
 }
 </style>

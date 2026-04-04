@@ -1,29 +1,28 @@
 <template>
-  <div>
+  <div class="manage-page">
     <el-card>
       <template #header>
-        <h3>活动管理</h3>
+        <div class="head">
+          <h3>活动管理</h3>
+          <span>共 {{ pagination.total }} 条</span>
+        </div>
       </template>
 
       <el-table :data="activities" v-loading="loading" :row-class-name="getRowClass">
-        <el-table-column label="活动标题" prop="title" min-width="200" />
+        <el-table-column label="活动标题" prop="title" min-width="220" />
         <el-table-column label="活动类型" width="120">
           <template #default="{ row }">
-            <el-tag>{{ row.category }}</el-tag>
+            <el-tag effect="light">{{ row.category }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="服务地点" prop="location" width="150" />
         <el-table-column label="报名人数" width="120">
-          <template #default="{ row }">
-            {{ row.currentParticipants }} / {{ row.maxParticipants }}
-          </template>
+          <template #default="{ row }">{{ row.currentParticipants }} / {{ row.maxParticipants }}</template>
         </el-table-column>
-        <el-table-column label="活动时间" width="180">
-          <template #default="{ row }">
-            {{ formatDate(row.startTime) }}
-          </template>
+        <el-table-column label="活动时间" width="170">
+          <template #default="{ row }">{{ formatDate(row.startTime) }}</template>
         </el-table-column>
-        <el-table-column label="活动状态" width="120">
+        <el-table-column label="活动阶段" width="120">
           <template #default="{ row }">
             <template v-for="p in [getActivityPhaseDisplay(row)]" :key="p.text">
               <el-tag :type="p.type">{{ p.text }}</el-tag>
@@ -32,55 +31,24 @@
         </el-table-column>
         <el-table-column label="招募状态" width="100">
           <template #default="{ row }">
-            <el-tag :type="getRecruitmentDisplay(row).type">
-              {{ getRecruitmentDisplay(row).text }}
-            </el-tag>
+            <el-tag :type="getRecruitmentDisplay(row).type">{{ getRecruitmentDisplay(row).text }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="440" fixed="right">
+        <el-table-column label="操作" width="460" fixed="right">
           <template #default="{ row }">
-            <el-button type="primary" size="small" link @click="viewDetail(row.id)">
-              查看
-            </el-button>
-            <el-button
-              v-if="canEdit(row)"
-              type="warning"
-              size="small"
-              link
-              @click="openEditDialog(row)"
-            >
-              编辑
-            </el-button>
-            <el-button
-              v-if="canEdit(row)"
-              type="info"
-              size="small"
-              link
-              @click="handleCancelActivity(row)"
-            >
-              取消活动
-            </el-button>
-            <el-button
-              v-if="canEdit(row)"
-              type="success"
-              size="small"
-              link
-              @click="handleCompleteActivity(row)"
-            >
-              结项
-            </el-button>
+            <el-button type="primary" size="small" link @click="viewDetail(row.id)">查看</el-button>
+            <el-button v-if="canEdit(row)" type="warning" size="small" link @click="openEditDialog(row)">编辑</el-button>
+            <el-button v-if="canEdit(row)" type="info" size="small" link @click="handleCancelActivity(row)">取消活动</el-button>
+            <el-button v-if="canEdit(row)" type="success" size="small" link @click="handleCompleteActivity(row)">结项</el-button>
             <el-button type="success" size="small" link @click="openRegistrationList(row)">
               报名名单 ({{ row.currentParticipants ?? 0 }})
             </el-button>
-            <el-button type="danger" size="small" link @click="handleDelete(row.id)">
-              删除
-            </el-button>
+            <el-button type="danger" size="small" link @click="handleDelete(row.id)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
 
       <div class="pagination-bar">
-        <span class="total-tip">共 {{ pagination.total }} 条活动</span>
         <el-pagination
           v-model:current-page="pagination.page"
           v-model:page-size="pagination.size"
@@ -107,22 +75,16 @@
         <el-table-column label="用户名" prop="username" width="120" />
         <el-table-column label="手机" prop="phone" width="130" />
         <el-table-column label="报名时间" width="170">
-          <template #default="{ row }">
-            {{ formatDate(row.registrationTime) }}
-          </template>
+          <template #default="{ row }">{{ formatDate(row.registrationTime) }}</template>
         </el-table-column>
         <el-table-column label="签到" width="90">
           <template #default="{ row }">
-            <el-tag :type="row.checkInStatus === 1 ? 'success' : 'info'" size="small">
-              {{ row.checkInStatus === 1 ? '已签到' : '未签到' }}
-            </el-tag>
+            <el-tag :type="row.checkInStatus === 1 ? 'success' : 'info'" size="small">{{ row.checkInStatus === 1 ? '已签到' : '未签到' }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="核销" width="90">
           <template #default="{ row }">
-            <el-tag :type="row.hoursConfirmed === 1 ? 'success' : 'warning'" size="small">
-              {{ row.hoursConfirmed === 1 ? '已核销' : '待核销' }}
-            </el-tag>
+            <el-tag :type="row.hoursConfirmed === 1 ? 'success' : 'warning'" size="small">{{ row.hoursConfirmed === 1 ? '已核销' : '待核销' }}</el-tag>
           </template>
         </el-table-column>
       </el-table>
@@ -148,7 +110,7 @@
             <el-select v-model="editForm.category" placeholder="请选择活动类型" style="width: 100%">
               <el-option label="校园服务" value="校园服务" />
               <el-option label="公益助学" value="公益助学" />
-              <el-option label="社区关怀" value="社区关怀" />
+              <el-option label="社区关爱" value="社区关爱" />
               <el-option label="大型活动" value="大型活动" />
               <el-option label="环保公益" value="环保公益" />
               <el-option label="应急救援" value="应急救援" />
@@ -172,7 +134,7 @@
           </el-form-item>
           <el-form-item label="招募人数" prop="maxParticipants">
             <el-input-number v-model="editForm.maxParticipants" :min="1" :max="500" />
-            <span class="form-tip">须 ≥ 当前已报名人数</span>
+            <span class="form-tip">需大于等于当前已报名人数</span>
           </el-form-item>
           <el-form-item label="志愿时长" prop="volunteerHours">
             <el-input-number v-model="editForm.volunteerHours" :min="0.5" :max="24" :step="0.5" />
@@ -311,7 +273,7 @@ const editRules = {
           return
         }
         if (new Date(editForm.registrationDeadline) <= new Date(value)) {
-          callback(new Error('招募开始须早于报名截止时间'))
+          callback(new Error('招募开始需早于报名截止'))
           return
         }
         callback()
@@ -328,11 +290,11 @@ const editRules = {
           return
         }
         if (new Date(value) <= new Date(editForm.registrationStartTime)) {
-          callback(new Error('截止时间须晚于招募开始时间'))
+          callback(new Error('报名截止须晚于招募开始'))
           return
         }
         if (editForm.startTime && new Date(value) > new Date(editForm.startTime)) {
-          callback(new Error('报名截止时间不能晚于活动开始时间'))
+          callback(new Error('报名截止不能晚于活动开始'))
           return
         }
         callback()
@@ -350,7 +312,7 @@ const currentActivity = ref({ id: null, title: '' })
 const regDialogTitle = computed(() => {
   const t = currentActivity.value.title || '活动'
   const n = registrationList.value.length
-  return `报名名单 — ${t}（${n} 人）`
+  return `报名名单 - ${t}（${n} 人）`
 })
 
 const pagination = reactive({
@@ -359,9 +321,7 @@ const pagination = reactive({
   total: 0
 })
 
-const formatDate = (date) => {
-  return dayjs(date).format('YYYY-MM-DD HH:mm')
-}
+const formatDate = (date) => dayjs(date).format('YYYY-MM-DD HH:mm')
 
 const canEdit = (row) => row.status === 'RECRUITING'
 
@@ -449,7 +409,7 @@ const submitEdit = async () => {
     editDialogVisible.value = false
     fetchActivities()
   } catch {
-    /* 错误由 request 拦截器提示 */
+    // 错误由 request 拦截器提示
   } finally {
     editSubmitLoading.value = false
   }
@@ -457,7 +417,7 @@ const submitEdit = async () => {
 
 const handleCancelActivity = (row) => {
   ElMessageBox.confirm(
-    '确定取消该活动？将删除该活动下全部报名记录，并释放名额；已核销计入用户累计志愿时长不会回滚。',
+    '确定取消该活动？将删除该活动下全部报名记录并释放名额，已核销时长不回滚。',
     '取消活动',
     { type: 'warning', confirmButtonText: '确定取消', cancelButtonText: '关闭' }
   )
@@ -504,7 +464,7 @@ const openRegistrationList = async (row) => {
 
 const handleDelete = (id) => {
   ElMessageBox.confirm(
-    '确定删除该活动？将同时删除其所有报名记录（已核销的用户累计时长不会回滚）。',
+    '确定删除该活动？将同时删除其所有报名记录（已核销时长不回滚）。',
     '提示',
     {
       confirmButtonText: '确定',
@@ -517,7 +477,7 @@ const handleDelete = (id) => {
       ElMessage.success('删除成功')
       fetchActivities()
     } catch {
-      /* 错误信息由 request 拦截器提示 */
+      // 错误由 request 拦截器提示
     }
   }).catch(() => {})
 }
@@ -549,18 +509,25 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.pagination-bar {
-  margin-top: 20px;
+.manage-page .head {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px;
+  align-items: center;
 }
 
-.total-tip {
+.manage-page .head h3 {
+  font-size: 22px;
+}
+
+.manage-page .head span {
   font-size: 13px;
-  color: var(--el-text-color-secondary);
+  color: #7f859c;
+}
+
+.pagination-bar {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .dialog-footer-tip {
@@ -579,6 +546,20 @@ onMounted(() => {
 .edit-dialog-body {
   min-height: 120px;
 }
+.manage-page :deep(.el-table__inner-wrapper) {
+  min-width: 1180px;
+}
+
+.manage-page :deep(.el-table__body-wrapper),
+.manage-page :deep(.el-table__header-wrapper) {
+  overflow-x: auto;
+}
+
+@media (max-width: 768px) {
+  .pagination-bar {
+    justify-content: center;
+  }
+}
 </style>
 
 <style>
@@ -586,9 +567,12 @@ onMounted(() => {
   background-color: #f0f9eb !important;
   color: var(--el-text-color-secondary);
 }
+
 .el-table .row-cancelled td {
   background-color: #fef0f0 !important;
   color: var(--el-text-color-placeholder);
   text-decoration: line-through;
 }
 </style>
+
+

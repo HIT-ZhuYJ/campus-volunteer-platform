@@ -1,97 +1,66 @@
 <template>
   <Layout>
-    <div class="home-container">
-      <el-row :gutter="20">
-        <!-- 数据统计卡片 -->
-        <el-col :xs="12" :sm="12" :md="6" :lg="6">
+    <div class="home-wrap page-container">
+      <section class="hero-card">
+        <div>
+          <p class="hero-label">Campus Volunteer</p>
+          <h1>以志愿行动连接校园影响力</h1>
+          <p class="hero-desc">发现适合你的公益活动，沉淀可追踪的服务轨迹。</p>
+        </div>
+        <el-button type="primary" class="hero-btn" @click="$router.push('/activities')">查看活动</el-button>
+      </section>
+
+      <el-row :gutter="16" class="stats-row">
+        <el-col :xs="12" :md="6">
           <el-card class="stat-card">
-            <div class="stat-item">
-              <div class="stat-icon" style="background: #409eff20">
-                <el-icon :size="30" color="#409eff"><Timer /></el-icon>
-              </div>
-              <div class="stat-info">
-                <div class="stat-value">{{ userInfo.totalVolunteerHours || 0 }}</div>
-                <div class="stat-label">志愿时长(h)</div>
-              </div>
-            </div>
+            <div class="stat-title">志愿时长</div>
+            <div class="stat-value">{{ userInfo.totalVolunteerHours || 0 }}</div>
+            <div class="stat-unit">小时</div>
           </el-card>
         </el-col>
-        <el-col :xs="12" :sm="12" :md="6" :lg="6">
+        <el-col :xs="12" :md="6">
           <el-card class="stat-card">
-            <div class="stat-item">
-              <div class="stat-icon" style="background: #67c23a20">
-                <el-icon :size="30" color="#67c23a"><Flag /></el-icon>
-              </div>
-              <div class="stat-info">
-                <div class="stat-value">{{ registrationCount }}</div>
-                <div class="stat-label">参与活动</div>
-              </div>
-            </div>
+            <div class="stat-title">参与活动</div>
+            <div class="stat-value">{{ registrationCount }}</div>
+            <div class="stat-unit">场</div>
           </el-card>
         </el-col>
-        <el-col :xs="12" :sm="12" :md="6" :lg="6">
+        <el-col :xs="12" :md="6">
           <el-card class="stat-card">
-            <div class="stat-item">
-              <div class="stat-icon" style="background: #e6a23c20">
-                <el-icon :size="30" color="#e6a23c"><Trophy /></el-icon>
-              </div>
-              <div class="stat-info">
-                <div class="stat-value">{{ completedCount }}</div>
-                <div class="stat-label">已签到</div>
-              </div>
-            </div>
+            <div class="stat-title">已签到</div>
+            <div class="stat-value">{{ completedCount }}</div>
+            <div class="stat-unit">次</div>
           </el-card>
         </el-col>
-        <el-col :xs="12" :sm="12" :md="6" :lg="6">
+        <el-col :xs="12" :md="6">
           <el-card class="stat-card">
-            <div class="stat-item">
-              <div class="stat-icon" style="background: #f5622120">
-                <el-icon :size="30" color="#f56221"><Star /></el-icon>
-              </div>
-              <div class="stat-info">
-                <div class="stat-value">{{ confirmedCount }}</div>
-                <div class="stat-label">已核销</div>
-              </div>
-            </div>
+            <div class="stat-title">已核销</div>
+            <div class="stat-value">{{ confirmedCount }}</div>
+            <div class="stat-unit">次</div>
           </el-card>
         </el-col>
       </el-row>
 
-      <!-- 最新活动 -->
-      <el-card class="section-card">
+      <el-card class="latest-card">
         <template #header>
-          <div class="card-header">
-            <span>🔥 最新活动</span>
-            <el-button type="primary" @click="$router.push('/activities')">
-              查看更多
-            </el-button>
+          <div class="latest-header">
+            <h2>最新活动</h2>
+            <el-button type="primary" plain @click="$router.push('/activities')">查看更多</el-button>
           </div>
         </template>
-        <el-row :gutter="20">
-          <el-col :xs="24" :sm="12" :md="8" :lg="8" v-for="activity in activities" :key="activity.id">
-            <el-card class="activity-card" @click="goToDetail(activity.id)">
-              <div class="activity-header">
-                <el-tag :type="getRecruitmentDisplay(activity).type" size="small">
-                  {{ getRecruitmentDisplay(activity).text }}
-                </el-tag>
-                <el-tag type="info" size="small">{{ activity.category }}</el-tag>
+
+        <el-row :gutter="16">
+          <el-col :xs="24" :sm="12" :lg="8" v-for="activity in activities" :key="activity.id">
+            <div class="activity-item" @click="goToDetail(activity.id)">
+              <div class="item-tags">
+                <el-tag :type="getRecruitmentDisplay(activity).type" effect="light">{{ getRecruitmentDisplay(activity).text }}</el-tag>
+                <el-tag type="info" effect="plain">{{ activity.category }}</el-tag>
               </div>
-              <h3>{{ activity.title }}</h3>
-              <div class="activity-info">
-                <div class="info-item">
-                  <el-icon><Location /></el-icon>
-                  <span>{{ activity.location }}</span>
-                </div>
-                <div class="info-item">
-                  <el-icon><Clock /></el-icon>
-                  <span>{{ activity.volunteerHours }} 小时</span>
-                </div>
-                <div class="info-item">
-                  <el-icon><User /></el-icon>
-                  <span>{{ activity.currentParticipants }} / {{ activity.maxParticipants }}</span>
-                </div>
-              </div>
-            </el-card>
+              <h3 class="text-ellipsis-2">{{ activity.title }}</h3>
+              <div class="meta-row"><el-icon><Location /></el-icon>{{ activity.location }}</div>
+              <div class="meta-row"><el-icon><Clock /></el-icon>{{ activity.volunteerHours }} 小时</div>
+              <div class="meta-row"><el-icon><User /></el-icon>{{ activity.currentParticipants }} / {{ activity.maxParticipants }}</div>
+            </div>
           </el-col>
         </el-row>
       </el-card>
@@ -131,7 +100,7 @@ const fetchData = async () => {
       getMyRegistrations(),
       getUserInfo()
     ])
-    
+
     activities.value = actRes.data.records || []
     registrations.value = regRes.data || []
     userInfo.value = userRes.data || {}
@@ -146,248 +115,144 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.home-container {
-  padding: 0;
-  max-width: 1400px;
+.home-wrap {
+  width: 100%;
   margin: 0 auto;
 }
 
+.hero-card {
+  border-radius: 24px;
+  padding: 34px 30px;
+  margin-bottom: 18px;
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-end;
+  background: linear-gradient(135deg, var(--cv-primary), var(--cv-primary-weak));
+  color: #fff;
+}
+
+.hero-label {
+  opacity: 0.86;
+  font-size: 12px;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+}
+
+.hero-card h1 {
+  font-size: clamp(28px, 4.8vw, 38px);
+  line-height: 1.18;
+  margin: 8px 0 10px;
+}
+
+.hero-desc {
+  max-width: 560px;
+  opacity: 0.92;
+}
+
+.hero-btn {
+  border-radius: 999px;
+  min-width: 124px;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.stats-row {
+  margin-bottom: 6px;
+}
+
 .stat-card {
-  margin-bottom: 20px;
-  border-radius: 12px;
-  border: none;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-  transition: all 0.3s;
-  overflow: hidden;
+  margin-bottom: 14px;
 }
 
-.stat-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-}
-
-.stat-card :deep(.el-card__body) {
-  padding: 24px;
-}
-
-.stat-item {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.stat-icon {
-  width: 60px;
-  height: 60px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.stat-info {
-  flex: 1;
-  min-width: 0;
+.stat-title {
+  color: #6c7084;
+  font-size: 13px;
 }
 
 .stat-value {
-  font-size: 32px;
-  font-weight: 700;
-  color: #333;
-  line-height: 1.2;
+  margin-top: 7px;
+  font-size: 34px;
+  font-weight: 800;
+  color: #1f2230;
+  line-height: 1;
 }
 
-.stat-label {
-  font-size: 13px;
-  color: #909399;
-  margin-top: 6px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.stat-unit {
+  margin-top: 5px;
+  color: #8f93a8;
+  font-size: 12px;
 }
 
-.section-card {
-  margin-top: 20px;
-  border-radius: 12px;
-  border: none;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+.latest-card {
+  margin-top: 4px;
 }
 
-.section-card :deep(.el-card__header) {
-  padding: 20px 24px;
-  background: linear-gradient(to right, #f8f9fa, #fff);
-  border-bottom: 2px solid #f0f0f0;
-}
-
-.card-header {
+.latest-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.card-header span {
-  font-size: 18px;
-  font-weight: 600;
-  color: #333;
-}
-
-.activity-card {
-  cursor: pointer;
-  transition: all 0.3s;
-  margin-bottom: 20px;
-  border-radius: 12px;
-  border: none;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  height: 100%;
-}
-
-.activity-card:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 12px 28px rgba(102, 126, 234, 0.2);
-}
-
-.activity-card :deep(.el-card__body) {
-  padding: 20px;
-}
-
-.activity-header {
-  display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.activity-card h3 {
-  font-size: 16px;
-  font-weight: 600;
-  margin: 0 0 16px 0;
-  color: #333;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  min-height: 44px;
-  line-height: 1.4;
-}
-
-.activity-info {
-  display: flex;
-  flex-direction: column;
   gap: 10px;
 }
 
-.info-item {
+.latest-header h2 {
+  font-size: 26px;
+  font-weight: 700;
+}
+
+.activity-item {
+  border-radius: 16px;
+  background: #f3f2ff;
+  padding: 18px;
+  margin-bottom: 14px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.activity-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 20px rgba(0, 20, 83, 0.1);
+}
+
+.item-tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.activity-item h3 {
+  font-size: 17px;
+  line-height: 1.4;
+  min-height: 48px;
+  margin-bottom: 12px;
+}
+
+.meta-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  color: #5f647a;
   font-size: 14px;
-  color: #666;
-}
-
-.info-item .el-icon {
-  color: #909399;
-  flex-shrink: 0;
-}
-
-/* 响应式设计 */
-@media (max-width: 1200px) {
-  .stat-value {
-    font-size: 28px;
-  }
-  
-  .stat-label {
-    font-size: 12px;
-  }
-}
-
-@media (max-width: 992px) {
-  .stat-card :deep(.el-card__body) {
-    padding: 20px;
-  }
-  
-  .stat-icon {
-    width: 50px;
-    height: 50px;
-  }
-  
-  .stat-value {
-    font-size: 24px;
-  }
+  margin-bottom: 6px;
 }
 
 @media (max-width: 768px) {
-  .home-container {
-    padding: 0;
-  }
-  
-  .stat-card {
-    margin-bottom: 16px;
-  }
-  
-  .stat-card :deep(.el-card__body) {
-    padding: 16px;
-  }
-  
-  .stat-item {
-    gap: 12px;
-  }
-  
-  .stat-icon {
-    width: 48px;
-    height: 48px;
-  }
-  
-  .stat-icon :deep(.el-icon) {
-    font-size: 24px !important;
-  }
-  
-  .stat-value {
-    font-size: 22px;
-  }
-  
-  .stat-label {
-    font-size: 11px;
-  }
-  
-  .section-card {
-    margin-top: 16px;
-  }
-  
-  .section-card :deep(.el-card__header) {
-    padding: 16px;
-  }
-  
-  .card-header span {
-    font-size: 16px;
-  }
-  
-  .activity-card {
-    margin-bottom: 16px;
-  }
-  
-  .activity-card h3 {
-    font-size: 15px;
-  }
-}
-
-@media (max-width: 576px) {
-  .stat-value {
-    font-size: 20px;
-  }
-  
-  .card-header {
+  .hero-card {
+    padding: 24px 18px;
     flex-direction: column;
     align-items: flex-start;
   }
-  
-  .card-header .el-button {
+
+  .hero-card h1 {
+    font-size: 26px;
+  }
+
+  .hero-btn {
     width: 100%;
   }
 }
 </style>
+
+
+
+
