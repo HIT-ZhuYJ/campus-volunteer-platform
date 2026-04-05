@@ -5,6 +5,13 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.Font;
+import org.apache.poi.ss.usermodel.HorizontalAlignment;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.example.common.constant.RedisKeyConstant;
 import org.example.common.exception.BusinessException;
 import org.example.dto.ActivityCreateRequest;
@@ -24,18 +31,26 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 @Service
 public class ActivityService {
 
     private static final Logger log = LoggerFactory.getLogger(ActivityService.class);
+    private static final DateTimeFormatter EXPORT_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     private final ActivityMapper activityMapper;
     private final RegistrationMapper registrationMapper;
@@ -139,6 +154,7 @@ public class ActivityService {
         Activity activity = new Activity();
         BeanUtils.copyProperties(request, activity);
         activity.setCreatorId(creatorId);
+        activity.setImageKey(joinImageKeys(normalizeImageKeys(request)));
         activity.setCurrentParticipants(0);
         activity.setStatus("RECRUITING");
 
@@ -165,14 +181,18 @@ public class ActivityService {
         }
 
         Long creatorId = existing.getCreatorId();
-        String oldImageKey = existing.getImageKey();
+        List<String> oldImageKeys = splitImageKeys(existing.getImageKey());
         BeanUtils.copyProperties(request, existing);
         existing.setId(activityId);
         existing.setCreatorId(creatorId);
+        existing.setImageKey(joinImageKeys(normalizeImageKeys(request)));
         activityMapper.updateById(existing);
         reconcileActivityRegistrationStats(existing, countRegisteredForActivity(activityId));
-        if (StringUtils.hasText(oldImageKey) && !oldImageKey.equals(existing.getImageKey())) {
-            minioStorageService.deleteObjectQuietly(oldImageKey);
+        Set<String> currentImageKeys = new LinkedHashSet<>(splitImageKeys(existing.getImageKey()));
+        for (String oldImageKey : oldImageKeys) {
+            if (!currentImageKeys.contains(oldImageKey)) {
+                minioStorageService.deleteObjectQuietly(oldImageKey);
+            }
         }
         log.info("updated activity activityId={} creatorId={}", activityId, creatorId);
     }
@@ -272,6 +292,61 @@ public class ActivityService {
 
     public List<RegistrationVO> getUserRegistrations(Long userId) {
         return registrationMapper.selectUserRegistrations(userId);
+    }
+
+    public byte[] exportConfirmedUserRegistrations(Long userId) {
+        List<RegistrationVO> confirmedRegistrations = registrationMapper.selectConfirmedRegistrationsByUserId(userId);
+        BigDecimal totalConfirmedHours = confirmedRegistrations.stream()
+                .map(RegistrationVO::getVolunteerHours)
+                .filter(hours -> hours != null)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        try (XSSFWorkbook workbook = new XSSFWorkbook();
+             ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet("已核销志愿记录");
+            CellStyle titleStyle = createTitleStyle(workbook);
+            CellStyle headerStyle = createHeaderStyle(workbook);
+
+            createCell(sheet.createRow(0), 0, "我的志愿足迹已核销记录", titleStyle);
+            createCell(sheet.createRow(1), 0, "导出时间");
+            createCell(sheet.getRow(1), 1, formatDateTime(LocalDateTime.now()));
+            createCell(sheet.createRow(2), 0, "已核销活动数");
+            createCell(sheet.getRow(2), 1, String.valueOf(confirmedRegistrations.size()));
+            createCell(sheet.createRow(3), 0, "已核销志愿时长（小时）");
+            createCell(sheet.getRow(3), 1, totalConfirmedHours.stripTrailingZeros().toPlainString());
+
+            Row headerRow = sheet.createRow(5);
+            String[] headers = {"活动名称", "活动地点", "活动开始时间", "报名时间", "核销时间", "核销时长（小时）"};
+            for (int i = 0; i < headers.length; i++) {
+                createCell(headerRow, i, headers[i], headerStyle);
+            }
+
+            int rowIndex = 6;
+            for (RegistrationVO registration : confirmedRegistrations) {
+                Row row = sheet.createRow(rowIndex++);
+                createCell(row, 0, registration.getActivityTitle());
+                createCell(row, 1, registration.getLocation());
+                createCell(row, 2, formatDateTime(registration.getStartTime()));
+                createCell(row, 3, formatDateTime(registration.getRegistrationTime()));
+                createCell(row, 4, formatDateTime(registration.getConfirmTime()));
+                createCell(row, 5, registration.getVolunteerHours() == null
+                        ? "0"
+                        : registration.getVolunteerHours().stripTrailingZeros().toPlainString());
+            }
+
+            for (int i = 0; i < headers.length; i++) {
+                sheet.autoSizeColumn(i);
+                sheet.setColumnWidth(i, Math.min(sheet.getColumnWidth(i) + 1024, 40 * 256));
+            }
+
+            workbook.write(outputStream);
+            log.info("exported confirmed volunteer registrations userId={} count={} totalHours={}",
+                    userId, confirmedRegistrations.size(), totalConfirmedHours);
+            return outputStream.toByteArray();
+        } catch (IOException ex) {
+            log.error("failed to export confirmed volunteer registrations userId={}", userId, ex);
+            throw new BusinessException("Failed to export confirmed volunteer records");
+        }
     }
 
     public List<RegistrationVO> listRegistrationsForAdmin(Long activityId) {
@@ -397,7 +472,9 @@ public class ActivityService {
         int deletedRegistrations = registrationMapper.delete(regWrapper);
         activityMapper.deleteById(activityId);
         redisTemplate.delete(RedisKeyConstant.getActivityStockKey(activityId));
-        minioStorageService.deleteObjectQuietly(activity.getImageKey());
+        for (String imageKey : splitImageKeys(activity.getImageKey())) {
+            minioStorageService.deleteObjectQuietly(imageKey);
+        }
         log.info("deleted activity activityId={} removedRegistrations={}", activityId, deletedRegistrations);
     }
 
@@ -466,10 +543,106 @@ public class ActivityService {
     private ActivityVO toActivityVO(Activity activity) {
         ActivityVO vo = new ActivityVO();
         BeanUtils.copyProperties(activity, vo);
+        List<String> imageKeys = splitImageKeys(activity.getImageKey());
+        List<String> imageUrls = buildImageUrls(imageKeys);
         int current = activity.getCurrentParticipants() != null ? activity.getCurrentParticipants() : 0;
         int max = activity.getMaxParticipants() != null ? activity.getMaxParticipants() : 0;
         vo.setAvailableSlots(Math.max(0, max - current));
-        vo.setImageUrl(minioStorageService.buildActivityImageUrl(activity.getImageKey()));
+        vo.setImageKeys(imageKeys);
+        vo.setImageUrls(imageUrls);
+        vo.setImageKey(imageKeys.isEmpty() ? null : imageKeys.get(0));
+        vo.setImageUrl(imageUrls.isEmpty() ? null : imageUrls.get(0));
         return vo;
+    }
+
+    private List<String> normalizeImageKeys(ActivityCreateRequest request) {
+        if (request == null) {
+            return Collections.emptyList();
+        }
+
+        List<String> rawKeys = request.getImageKeys();
+        if (rawKeys == null || rawKeys.isEmpty()) {
+            rawKeys = StringUtils.hasText(request.getImageKey())
+                    ? List.of(request.getImageKey())
+                    : Collections.emptyList();
+        }
+
+        LinkedHashSet<String> normalized = new LinkedHashSet<>();
+        for (String key : rawKeys) {
+            if (StringUtils.hasText(key)) {
+                normalized.add(key.trim());
+            }
+        }
+        return new ArrayList<>(normalized);
+    }
+
+    private List<String> splitImageKeys(String rawImageKeys) {
+        if (!StringUtils.hasText(rawImageKeys)) {
+            return Collections.emptyList();
+        }
+
+        LinkedHashSet<String> keys = new LinkedHashSet<>();
+        for (String part : rawImageKeys.split(",")) {
+            if (StringUtils.hasText(part)) {
+                keys.add(part.trim());
+            }
+        }
+        return new ArrayList<>(keys);
+    }
+
+    private String joinImageKeys(List<String> imageKeys) {
+        if (imageKeys == null || imageKeys.isEmpty()) {
+            return null;
+        }
+        return String.join(",", imageKeys);
+    }
+
+    private List<String> buildImageUrls(List<String> imageKeys) {
+        if (imageKeys == null || imageKeys.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<String> imageUrls = new ArrayList<>(imageKeys.size());
+        for (String imageKey : imageKeys) {
+            String imageUrl = minioStorageService.buildActivityImageUrl(imageKey);
+            if (StringUtils.hasText(imageUrl)) {
+                imageUrls.add(imageUrl);
+            }
+        }
+        return imageUrls;
+    }
+
+    private CellStyle createTitleStyle(XSSFWorkbook workbook) {
+        CellStyle style = workbook.createCellStyle();
+        Font font = workbook.createFont();
+        font.setBold(true);
+        font.setFontHeightInPoints((short) 14);
+        style.setFont(font);
+        return style;
+    }
+
+    private CellStyle createHeaderStyle(XSSFWorkbook workbook) {
+        CellStyle style = workbook.createCellStyle();
+        Font font = workbook.createFont();
+        font.setBold(true);
+        style.setFont(font);
+        style.setAlignment(HorizontalAlignment.CENTER);
+        return style;
+    }
+
+    private void createCell(Row row, int cellIndex, String value) {
+        createCell(row, cellIndex, value, null);
+    }
+
+    private void createCell(Row row, int cellIndex, String value, CellStyle style) {
+        Cell cell = row.createCell(cellIndex);
+        cell.setCellValue(value == null ? "" : value);
+        if (style != null) {
+            cell.setCellStyle(style);
+        }
+    }
+
+    private String formatDateTime(LocalDateTime value) {
+        return value == null ? "" : value.format(EXPORT_TIME_FORMATTER);
     }
 }

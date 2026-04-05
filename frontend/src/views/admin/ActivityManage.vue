@@ -134,10 +134,10 @@
           </el-form-item>
           <el-form-item label="活动图片">
             <ActivityImageUploader
-              :image-key="editForm.imageKey"
-              :image-url="editImageUrl"
-              @update:image-key="(value) => { editForm.imageKey = value }"
-              @update:image-url="setEditImageUrl"
+              :image-keys="editForm.imageKeys"
+              :image-urls="editForm.imageUrls"
+              @update:image-keys="(value) => { editForm.imageKeys = value }"
+              @update:image-urls="(value) => { editForm.imageUrls = value }"
             />
           </el-form-item>
           <el-form-item label="招募人数" prop="maxParticipants">
@@ -224,18 +224,14 @@ const editFormRef = ref()
 const editingId = ref(null)
 const editAiKeywords = ref('')
 const editAiLoading = ref(false)
-const editImageUrl = ref('')
-
-const setEditImageUrl = (value) => {
-  editImageUrl.value = value
-}
 
 const editForm = reactive({
   title: '',
   category: '',
   location: '',
   description: '',
-  imageKey: '',
+  imageKeys: [],
+  imageUrls: [],
   maxParticipants: 20,
   volunteerHours: 2,
   startTime: '',
@@ -349,13 +345,13 @@ const getRowClass = ({ row }) => {
 const resetEditForm = () => {
   editingId.value = null
   editAiKeywords.value = ''
-  editImageUrl.value = ''
   Object.assign(editForm, {
     title: '',
     category: '',
     location: '',
     description: '',
-    imageKey: '',
+    imageKeys: [],
+    imageUrls: [],
     maxParticipants: 20,
     volunteerHours: 2,
     startTime: '',
@@ -378,7 +374,8 @@ const openEditDialog = async (row) => {
       category: d.category ?? '',
       location: d.location ?? '',
       description: d.description ?? '',
-      imageKey: d.imageKey ?? '',
+      imageKeys: d.imageKeys ?? (d.imageKey ? [d.imageKey] : []),
+      imageUrls: d.imageUrls ?? (d.imageUrl ? [d.imageUrl] : []),
       maxParticipants: d.maxParticipants ?? 20,
       volunteerHours: d.volunteerHours != null ? Number(d.volunteerHours) : 2,
       startTime: d.startTime ?? '',
@@ -386,7 +383,6 @@ const openEditDialog = async (row) => {
       registrationStartTime: d.registrationStartTime ?? '',
       registrationDeadline: d.registrationDeadline ?? ''
     })
-    editImageUrl.value = d.imageUrl ?? ''
     await nextTick()
     editFormRef.value?.clearValidate()
   } catch (e) {
@@ -423,7 +419,19 @@ const submitEdit = async () => {
   await editFormRef.value.validate()
   editSubmitLoading.value = true
   try {
-    await updateActivity(editingId.value, { ...editForm })
+    await updateActivity(editingId.value, {
+      title: editForm.title,
+      category: editForm.category,
+      location: editForm.location,
+      description: editForm.description,
+      imageKeys: editForm.imageKeys,
+      maxParticipants: editForm.maxParticipants,
+      volunteerHours: editForm.volunteerHours,
+      startTime: editForm.startTime,
+      endTime: editForm.endTime,
+      registrationStartTime: editForm.registrationStartTime,
+      registrationDeadline: editForm.registrationDeadline
+    })
     ElMessage.success('保存成功')
     editDialogVisible.value = false
     fetchActivities()

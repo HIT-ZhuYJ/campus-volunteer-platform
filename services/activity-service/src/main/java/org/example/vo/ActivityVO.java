@@ -5,6 +5,7 @@ import lombok.Data;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 public class ActivityVO implements Serializable {
@@ -18,6 +19,10 @@ public class ActivityVO implements Serializable {
     private String imageKey;
 
     private String imageUrl;
+
+    private List<String> imageKeys;
+
+    private List<String> imageUrls;
     
     private String location;
     

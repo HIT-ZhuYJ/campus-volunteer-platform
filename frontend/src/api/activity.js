@@ -1,3 +1,4 @@
+import axios from 'axios'
 import request from '@/utils/request'
 
 // 获取活动列表（空字符串 status/category 不传，避免后端按 "" 精确匹配导致无数据）
@@ -79,6 +80,16 @@ export const getMyRegistrations = () => {
   return request({
     url: '/activity/myRegistrations',
     method: 'get'
+  })
+}
+
+export const exportConfirmedMyRegistrations = () => {
+  const token = localStorage.getItem('token')
+  return axios({
+    url: '/api/activity/myRegistrations/exportConfirmed',
+    method: 'get',
+    responseType: 'blob',
+    headers: token ? { Authorization: `Bearer ${token}` } : {}
   })
 }
 

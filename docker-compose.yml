@@ -161,7 +161,7 @@ services:
       - gateway-service
       - monitor-service
     ports:
-      - "8080:80"
+      - "8081:80"
     networks:
       - cloud-demo
 

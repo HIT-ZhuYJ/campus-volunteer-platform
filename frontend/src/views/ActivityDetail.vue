@@ -16,8 +16,12 @@
               <span><el-icon><User /></el-icon>{{ activity.currentParticipants }} / {{ activity.maxParticipants }}</span>
             </div>
           </div>
-          <div class="hero-cover" :class="{ empty: !activity.imageUrl }">
-            <img v-if="activity.imageUrl" :src="activity.imageUrl" :alt="activity.title">
+          <div class="hero-cover" :class="{ empty: !hasGalleryImages }">
+            <el-carousel v-if="hasGalleryImages" height="240px" indicator-position="outside">
+              <el-carousel-item v-for="(imageUrl, index) in galleryImages" :key="`${activity.id}-${index}`">
+                <img :src="imageUrl" :alt="`${activity.title}-${index + 1}`">
+              </el-carousel-item>
+            </el-carousel>
             <div v-else class="hero-fallback">
               <span>{{ activity.category || '志愿活动' }}</span>
               <small>{{ activity.location || '活动封面待上传' }}</small>
@@ -121,6 +125,13 @@ const activity = ref({})
 
 const activityPhaseDisplay = computed(() => getActivityPhaseDisplay(activity.value))
 const recruitmentDisplay = computed(() => getRecruitmentDisplay(activity.value))
+const galleryImages = computed(() => {
+  if (Array.isArray(activity.value.imageUrls) && activity.value.imageUrls.length > 0) {
+    return activity.value.imageUrls
+  }
+  return activity.value.imageUrl ? [activity.value.imageUrl] : []
+})
+const hasGalleryImages = computed(() => galleryImages.value.length > 0)
 
 const canRegister = computed(() => {
   const a = activity.value
@@ -235,6 +246,11 @@ onMounted(() => { fetchActivity() })
   min-height: 240px;
   object-fit: cover;
   display: block;
+}
+
+.hero-cover :deep(.el-carousel),
+.hero-cover :deep(.el-carousel__container) {
+  height: 240px;
 }
 
 .hero-fallback {

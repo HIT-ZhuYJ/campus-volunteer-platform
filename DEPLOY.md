@@ -61,7 +61,7 @@ $env:MINIO_BUCKET="activity-images"
 如果数据库不是刚用 `database/init.sql` 初始化，而是已有存量库，请先执行：
 
 ```sql
-ALTER TABLE vol_activity ADD COLUMN image_key VARCHAR(255) COMMENT '活动图片对象键';
+ALTER TABLE vol_activity ADD COLUMN image_key TEXT COMMENT '活动图片对象键列表，逗号分隔';
 ```
 
 启动：
@@ -156,8 +156,8 @@ docker compose down
 
 默认访问地址：
 
-- 前台：`http://localhost:8080/`
-- 监控后台：`http://localhost:8080/monitor/`
+- 前台：`http://localhost:8081/`
+- 监控后台：`http://localhost:8081/monitor/`
 - 网关：`http://localhost:9001`
 - 监控：`http://localhost:9101`
 - Nacos：`http://localhost:8849/nacos`
@@ -166,13 +166,13 @@ docker compose down
 
 同校园网访问地址：
 
-- 前台：`http://你的校园网IPv4:8080/`
-- 监控后台：`http://你的校园网IPv4:8080/monitor/`
+- 前台：`http://你的校园网IPv4:8081/`
+- 监控后台：`http://你的校园网IPv4:8081/monitor/`
 - 网关：`http://你的校园网IPv4:9001`
 
 说明：
 
-- 前端容器端口使用 `8080:80`，避免和宿主机现有 Nginx 冲突
+- 前端容器端口使用 `8081:80`，避免和宿主机现有 Nginx 冲突
 - Nacos、网关、监控的宿主机端口分别为 `8849`、`9001`、`9101`，避免和本机同名服务冲突
 - Compose 已内置 MinIO，宿主机端口映射为 `9007`（API）和 `9008`（控制台）
 - 数据库初始化脚本会挂载 `database/init.sql`
@@ -183,8 +183,8 @@ docker compose down
 - 如果你希望这些覆盖值持久保留，建议参考仓库根目录 `.env.example` 创建 `.env`
 - `database/init.sql` 顶部已加入 `SET NAMES utf8mb4;`，用于避免 MySQL 容器初始化时中文按错误字符集导入
 - 同校园网分享时，请先通过 `ipconfig` 确认宿主机当前 IPv4 地址
-- Windows 防火墙至少需要放行 `8080`；如果需要让同学直接调接口，再额外放行 `9001`
-- 如果同学无法访问，而你本机可以访问 `http://localhost:8080/`，优先排查防火墙和校园网是否启用了终端互访隔离
+- Windows 防火墙至少需要放行 `8081`；如果需要让同学直接调接口，再额外放行 `9001`
+- 如果同学无法访问，而你本机可以访问 `http://localhost:8081/`，优先排查防火墙和校园网是否启用了终端互访隔离
 
 ### 单独构建某个微服务
 
@@ -261,8 +261,8 @@ Docker 前端联通性：
 
 ```powershell
 ipconfig
-curl http://127.0.0.1:8080/
-netstat -ano | findstr :8080
+curl http://127.0.0.1:8081/
+netstat -ano | findstr :8081
 ```
 
 ## 六、部署验收清单
@@ -275,6 +275,6 @@ netstat -ano | findstr :8080
 - [ ] Nginx 已成功加载配置
 - [ ] `http://localhost/` 可访问
 - [ ] `http://localhost/monitor/` 可访问
-- [ ] 或者 Docker 模式下 `http://localhost:8080/` 可访问
-- [ ] 或者 Docker 模式下 `http://localhost:8080/monitor/` 可访问
-- [ ] 如果需要同校园网访问，`http://你的校园网IPv4:8080/` 可从另一台设备打开
+- [ ] 或者 Docker 模式下 `http://localhost:8081/` 可访问
+- [ ] 或者 Docker 模式下 `http://localhost:8081/monitor/` 可访问
+- [ ] 如果需要同校园网访问，`http://你的校园网IPv4:8081/` 可从另一台设备打开

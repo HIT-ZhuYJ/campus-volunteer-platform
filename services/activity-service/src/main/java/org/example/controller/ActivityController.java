@@ -10,20 +10,27 @@ import org.example.service.MinioStorageService;
 import org.example.vo.ActivityVO;
 import org.example.vo.ActivityImageUploadVO;
 import org.example.vo.RegistrationVO;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.CacheControl;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 @RestController
 @RequestMapping("/activity")
 public class ActivityController {
+
+    private static final DateTimeFormatter EXPORT_FILENAME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
     
     private final ActivityService activityService;
     private final AIService aiService;
@@ -110,6 +117,25 @@ public class ActivityController {
         
         List<RegistrationVO> registrations = activityService.getUserRegistrations(userId);
         return Result.success(registrations);
+    }
+
+    @GetMapping("/myRegistrations/exportConfirmed")
+    public ResponseEntity<ByteArrayResource> exportConfirmedMyRegistrations(
+            @RequestHeader("X-User-Id") Long userId) {
+
+        byte[] fileBytes = activityService.exportConfirmedUserRegistrations(userId);
+        String fileName = "my-volunteer-footprint-confirmed-"
+                + LocalDateTime.now().format(EXPORT_FILENAME_FORMATTER) + ".xlsx";
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                        .filename(fileName)
+                        .build()
+                        .toString())
+                .contentLength(fileBytes.length)
+                .body(new ByteArrayResource(fileBytes));
     }
 
     /**
