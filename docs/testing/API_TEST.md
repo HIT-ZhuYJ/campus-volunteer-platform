@@ -37,6 +37,7 @@ Docker 模式：
 - `GET /announcement/home`
 - `GET /announcement/list`
 - `GET /announcement/image`
+- `GET /announcement/attachment`
 
 其余接口默认需要 `Authorization: Bearer <token>`。
 
@@ -154,7 +155,122 @@ curl http://localhost:9000/announcement/1 \
 curl "http://localhost:9000/announcement/image?objectKey=announcements/example.jpg" --output announcement.jpg
 ```
 
-## 8. 报名相关接口
+### 公告附件
+
+```bash
+curl "http://localhost:9000/announcement/attachment?objectKey=announcements/attachments/example.pdf&fileName=example.pdf" --output example.pdf
+```
+
+## 8. 意见反馈接口
+
+反馈分类：
+
+- `QUESTION`
+- `SUGGESTION`
+- `BUG`
+- `COMPLAINT`
+- `OTHER`
+
+反馈状态：
+
+- `OPEN`
+- `REPLIED`
+- `CLOSED`
+- `REJECTED`
+
+反馈优先级：
+
+- `LOW`
+- `NORMAL`
+- `HIGH`
+- `URGENT`
+
+### 创建反馈
+
+```bash
+curl -X POST http://localhost:9000/feedback \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d "{\"title\":\"页面建议\",\"category\":\"SUGGESTION\",\"content\":\"希望活动详情页增加更多提示\",\"attachments\":[]}"
+```
+
+### 我的反馈列表
+
+```bash
+curl "http://localhost:9000/feedback/my?page=1&size=10&status=OPEN" \
+  -H "Authorization: Bearer <token>"
+```
+
+### 反馈详情
+
+```bash
+curl http://localhost:9000/feedback/1 \
+  -H "Authorization: Bearer <token>"
+```
+
+### 追加回复
+
+```bash
+curl -X POST http://localhost:9000/feedback/1/messages \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d "{\"content\":\"补充一条反馈说明\",\"attachments\":[]}"
+```
+
+### 关闭自己的反馈
+
+```bash
+curl -X POST http://localhost:9000/feedback/1/close \
+  -H "Authorization: Bearer <token>"
+```
+
+### 上传与下载反馈附件
+
+```bash
+curl -X POST http://localhost:9000/feedback/attachments \
+  -H "Authorization: Bearer <token>" \
+  -F "file=@D:/files/feedback.png"
+
+curl "http://localhost:9000/feedback/attachments?objectKey=feedback/tmp/1/example.png&fileName=feedback.png" \
+  -H "Authorization: Bearer <token>" \
+  --output feedback.png
+```
+
+上传返回的 `attachmentKey`、`fileName`、`contentType`、`fileSize`、`fileType` 可放入创建反馈或追加回复的 `attachments` 数组。每条消息最多 6 个附件。
+
+### 管理员反馈列表与详情
+
+```bash
+curl "http://localhost:9000/feedback/admin/list?page=1&size=10&status=OPEN&category=QUESTION&priority=NORMAL&keyword=页面" \
+  -H "Authorization: Bearer <admin-token>"
+
+curl http://localhost:9000/feedback/admin/1 \
+  -H "Authorization: Bearer <admin-token>"
+```
+
+### 管理员回复、关闭、驳回和调整优先级
+
+```bash
+curl -X POST http://localhost:9000/feedback/admin/1/messages \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <admin-token>" \
+  -d "{\"content\":\"已收到，我们会继续跟进\",\"attachments\":[]}"
+
+curl -X POST http://localhost:9000/feedback/admin/1/priority \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <admin-token>" \
+  -d "{\"priority\":\"HIGH\"}"
+
+curl -X POST http://localhost:9000/feedback/admin/1/close \
+  -H "Authorization: Bearer <admin-token>"
+
+curl -X POST http://localhost:9000/feedback/admin/1/reject \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <admin-token>" \
+  -d "{\"reason\":\"该问题不属于平台处理范围\"}"
+```
+
+## 9. 报名相关接口
 
 ### 报名活动
 
@@ -185,7 +301,7 @@ curl -L http://localhost:9000/activity/myRegistrations/exportConfirmed \
   --output confirmed-hours.xlsx
 ```
 
-## 9. 管理员活动管理接口
+## 10. 管理员活动管理接口
 
 ### 创建活动
 
@@ -226,7 +342,7 @@ curl -X DELETE http://localhost:9000/activity/1 \
   -H "Authorization: Bearer <admin-token>"
 ```
 
-## 10. 管理员报名管理接口
+## 11. 管理员报名管理接口
 
 ### 查看全部报名记录
 
@@ -270,7 +386,7 @@ curl -X POST http://localhost:9000/activity/confirmHours/25 \
   -H "Authorization: Bearer <admin-token>"
 ```
 
-## 11. 管理员公告管理接口
+## 12. 管理员公告管理接口
 
 ### 管理员公告列表
 
@@ -285,7 +401,7 @@ curl "http://localhost:9000/announcement/admin/list?page=1&size=10" \
 curl -X POST http://localhost:9000/announcement/admin \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <admin-token>" \
-  -d "{\"title\":\"测试公告\",\"content\":\"公告内容\",\"activityId\":1,\"status\":\"PUBLISHED\",\"sortOrder\":10,\"imageKeys\":[\"announcements/test-1.jpg\"]}"
+  -d "{\"title\":\"测试公告\",\"content\":\"公告内容\",\"activityId\":1,\"activityIds\":[1,2],\"status\":\"PUBLISHED\",\"sortOrder\":10,\"imageKeys\":[\"announcements/test-1.jpg\"],\"attachments\":[]}"
 ```
 
 ### 编辑公告
@@ -294,7 +410,7 @@ curl -X POST http://localhost:9000/announcement/admin \
 curl -X PUT http://localhost:9000/announcement/admin/1 \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <admin-token>" \
-  -d "{\"title\":\"更新后的公告\",\"content\":\"更新后的公告内容\",\"activityId\":1,\"status\":\"PUBLISHED\",\"sortOrder\":20,\"imageKeys\":[]}"
+  -d "{\"title\":\"更新后的公告\",\"content\":\"更新后的公告内容\",\"activityId\":1,\"activityIds\":[1],\"status\":\"PUBLISHED\",\"sortOrder\":20,\"imageKeys\":[],\"attachments\":[]}"
 ```
 
 ### 下线与重新发布公告
@@ -322,7 +438,17 @@ curl -X POST http://localhost:9000/announcement/admin/image \
   -F "file=@D:/images/announcement.png"
 ```
 
-## 12. AI 与图片接口
+### 上传公告附件
+
+```bash
+curl -X POST http://localhost:9000/announcement/admin/attachment \
+  -H "Authorization: Bearer <admin-token>" \
+  -F "file=@D:/files/notice.pdf"
+```
+
+上传返回的 `attachmentKey`、`fileName`、`contentType`、`fileSize` 可放入发布或编辑公告的 `attachments` 数组。
+
+## 13. AI 与图片接口
 
 ### AI 生成活动文案
 
@@ -341,7 +467,7 @@ curl -X POST http://localhost:9000/activity/admin/image \
   -F "file=@D:/images/activity.png"
 ```
 
-## 13. Nginx 场景验证
+## 14. Nginx 场景验证
 
 ```bash
 curl http://localhost/
@@ -352,7 +478,7 @@ curl http://localhost/.well-known/oauth-authorization-server
 curl -i http://localhost/mcp
 ```
 
-## 14. 常见结果判断
+## 15. 常见结果判断
 
 - `9000` 通、`/api` 不通：Nginx API 代理问题
 - `9100` 通、`/monitor/` 不通：监控代理问题

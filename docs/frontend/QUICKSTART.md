@@ -25,7 +25,7 @@ npm run dev
 前提：
 
 - `gateway-service` 已启动在 `9000`
-- `user-service` 与 `activity-service` 已正常提供接口
+- `user-service`、`activity-service`、`announcement-service` 与 `feedback-service` 已正常提供接口
 
 开发模式下，Vite 会把 `/api` 代理到 `http://localhost:9000`。
 
@@ -53,12 +53,18 @@ npm run build
 - `/home`
 - `/activities`
 - `/activity/:id`
+- `/announcement/:id`
+- `/feedback`
+- `/my-feedback`
+- `/feedback/:id`
 - `/my`
 - `/profile`
 
 管理员侧：
 
 - `/admin/activities`
+- `/admin/announcements`
+- `/admin/feedback`
 - `/admin/create`
 - `/admin/checkin`
 - `/admin/confirm`
@@ -67,20 +73,26 @@ npm run build
 ## 5. 当前前端能力
 
 - 登录与注册
+- 首页公告、公告详情、公告附件和关联活动跳转
 - 活动列表筛选
 - 活动详情展示
 - 动态显示招募阶段与活动阶段
 - 我的志愿足迹列表
 - 取消未开始活动的报名
 - 导出已核销志愿足迹 Excel
+- 我的反馈列表、提交反馈、反馈详情、追加回复、附件上传和关闭反馈
 - 管理端活动创建、编辑、取消、结项
 - 管理端多图上传
 - 管理端签到、时长核销、志愿时长统计
+- 管理端公告发布、编辑、下线、附件上传和多活动关联
+- 管理端反馈工单筛选、回复、驳回、关闭和优先级调整
 
 ## 6. 关键约定
 
 - 请求前缀统一为 `/api`
 - 图片展示统一走 `/api/activity/image`
+- 公告图片与附件分别走 `/api/announcement/image`、`/api/announcement/attachment`
+- 反馈附件走 `/api/feedback/attachments`
 - 开发模式由 Vite 代理 `/api`
 - 部署模式由 Nginx 代理 `/api/`
 
@@ -88,11 +100,14 @@ npm run build
 
 - [ ] 登录页可打开
 - [ ] 活动列表可加载
+- [ ] 首页公告与公告详情可加载
 - [ ] 登录后可跳转到首页
 - [ ] 我的志愿足迹可展示报名记录
 - [ ] 已核销记录可导出 Excel
+- [ ] 我的反馈可提交、回复并关闭
 - [ ] 管理员可进入后台页面
 - [ ] 管理员可上传活动图片
+- [ ] 管理员可维护公告与反馈工单
 
 ## 8. 常见问题
 

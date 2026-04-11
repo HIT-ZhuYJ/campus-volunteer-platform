@@ -21,6 +21,27 @@ CREATE TABLE IF NOT EXISTS vol_announcement (
     INDEX idx_activity_id (activity_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='公告表';
 
+CREATE TABLE IF NOT EXISTS vol_announcement_activity (
+    id                BIGINT       PRIMARY KEY AUTO_INCREMENT COMMENT 'ID',
+    announcement_id   BIGINT       NOT NULL COMMENT 'Announcement ID',
+    activity_id       BIGINT       NOT NULL COMMENT 'Activity ID',
+    create_time       DATETIME     DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_announcement_activity (announcement_id, activity_id),
+    INDEX idx_activity_id (activity_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Announcement activity links';
+
+CREATE TABLE IF NOT EXISTS vol_announcement_attachment (
+    id                BIGINT        PRIMARY KEY AUTO_INCREMENT COMMENT 'ID',
+    announcement_id   BIGINT        NOT NULL COMMENT 'Announcement ID',
+    object_key        VARCHAR(512)  NOT NULL COMMENT 'MinIO object key',
+    original_name     VARCHAR(255)  NOT NULL COMMENT 'Original file name',
+    content_type      VARCHAR(120)  COMMENT 'Content type',
+    file_size         BIGINT        NOT NULL DEFAULT 0 COMMENT 'File size in bytes',
+    sort_order        INT           NOT NULL DEFAULT 0 COMMENT 'Sort order',
+    create_time       DATETIME      DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_announcement_id (announcement_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Announcement attachments';
+
 INSERT INTO vol_announcement (title, content, image_key, activity_id, status, sort_order, publisher_id, publish_time)
 SELECT '四月志愿服务月安排发布',
        '四月志愿服务月已开启，图书馆整理、社区清洁、运动会保障等活动将陆续开放报名。请同学们关注活动时间，合理安排课业与志愿服务。',
@@ -86,3 +107,8 @@ SET title = '志愿时长核销说明',
     activity_id = NULL,
     status = 'PUBLISHED'
 WHERE publisher_id = 1 AND sort_order = 10 AND publish_time = '2026-03-27 10:00:00';
+
+INSERT IGNORE INTO vol_announcement_activity (announcement_id, activity_id)
+SELECT id, activity_id
+FROM vol_announcement
+WHERE activity_id IS NOT NULL;

@@ -86,6 +86,27 @@ CREATE TABLE vol_announcement (
 -- ==============================================================================
 -- 4. 报名流水表
 -- ==============================================================================
+CREATE TABLE vol_announcement_activity (
+    id                BIGINT       PRIMARY KEY AUTO_INCREMENT COMMENT 'ID',
+    announcement_id   BIGINT       NOT NULL COMMENT 'Announcement ID',
+    activity_id       BIGINT       NOT NULL COMMENT 'Activity ID',
+    create_time       DATETIME     DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_announcement_activity (announcement_id, activity_id),
+    INDEX idx_activity_id (activity_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Announcement activity links';
+
+CREATE TABLE vol_announcement_attachment (
+    id                BIGINT        PRIMARY KEY AUTO_INCREMENT COMMENT 'ID',
+    announcement_id   BIGINT        NOT NULL COMMENT 'Announcement ID',
+    object_key        VARCHAR(512)  NOT NULL COMMENT 'MinIO object key',
+    original_name     VARCHAR(255)  NOT NULL COMMENT 'Original file name',
+    content_type      VARCHAR(120)  COMMENT 'Content type',
+    file_size         BIGINT        NOT NULL DEFAULT 0 COMMENT 'File size in bytes',
+    sort_order        INT           NOT NULL DEFAULT 0 COMMENT 'Sort order',
+    create_time       DATETIME      DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_announcement_id (announcement_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Announcement attachments';
+
 CREATE TABLE vol_registration (
     id                BIGINT    PRIMARY KEY AUTO_INCREMENT COMMENT '报名ID',
     user_id           BIGINT    NOT NULL COMMENT '用户ID',
@@ -317,6 +338,11 @@ INSERT INTO vol_announcement (title, content, image_key, activity_id, status, so
  '活动结束后，管理员会根据签到记录进行志愿时长核销。请同学们参加活动时按要求完成现场签到。',
  NULL, NULL, 'PUBLISHED', 10, 1, '2026-03-27 10:00:00');
 
+INSERT IGNORE INTO vol_announcement_activity (announcement_id, activity_id)
+SELECT id, activity_id
+FROM vol_announcement
+WHERE activity_id IS NOT NULL;
+
 -- ==============================================================================
 -- 9. 测试数据 — 报名记录（54 条）
 --    活动1(2人) 活动2(3人) 活动3(5人) 活动4(10人) 活动5(4人) 活动6(6人) 活动7(2人)
@@ -478,3 +504,52 @@ INSERT INTO vol_registration (user_id, activity_id, registration_time, check_in_
 
 -- 补充历史已核销活动（简化：直接在 vol_registration 中已体现，sys_user 的 total_hours 已包含）
 -- 实际业务中，核销通过 confirmHours 接口触发 Feign 更新用户时长，此处 init.sql 直接设定总量
+
+-- ==============================================================================
+-- 10. Feedback ticket tables
+-- ==============================================================================
+CREATE TABLE feedback (
+    id                 BIGINT        PRIMARY KEY AUTO_INCREMENT,
+    user_id            BIGINT        NOT NULL,
+    title              VARCHAR(200)  NOT NULL,
+    category           VARCHAR(30)   NOT NULL,
+    status             VARCHAR(30)   NOT NULL DEFAULT 'OPEN',
+    priority           VARCHAR(20)   NOT NULL DEFAULT 'NORMAL',
+    last_message_time  DATETIME,
+    last_replier_role  VARCHAR(20),
+    closed_by          BIGINT,
+    closed_time        DATETIME,
+    reject_reason      VARCHAR(500),
+    create_time        DATETIME      DEFAULT CURRENT_TIMESTAMP,
+    update_time        DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_feedback_user_status (user_id, status),
+    INDEX idx_feedback_status_category (status, category),
+    INDEX idx_feedback_priority (priority),
+    INDEX idx_feedback_last_message_time (last_message_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Feedback tickets';
+
+CREATE TABLE feedback_message (
+    id             BIGINT       PRIMARY KEY AUTO_INCREMENT,
+    feedback_id    BIGINT       NOT NULL,
+    sender_id      BIGINT       NOT NULL,
+    sender_role    VARCHAR(20)  NOT NULL,
+    content        TEXT,
+    message_type   VARCHAR(20)  NOT NULL DEFAULT 'TEXT',
+    create_time    DATETIME     DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_feedback_message_feedback (feedback_id, create_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Feedback messages';
+
+CREATE TABLE feedback_message_attachment (
+    id             BIGINT        PRIMARY KEY AUTO_INCREMENT,
+    feedback_id    BIGINT        NOT NULL,
+    message_id     BIGINT        NOT NULL,
+    object_key     VARCHAR(512)  NOT NULL,
+    original_name  VARCHAR(255)  NOT NULL,
+    content_type   VARCHAR(120),
+    file_size      BIGINT        NOT NULL DEFAULT 0,
+    file_type      VARCHAR(20)   NOT NULL,
+    create_time    DATETIME      DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_feedback_attachment_feedback (feedback_id),
+    INDEX idx_feedback_attachment_message (message_id),
+    UNIQUE KEY uk_feedback_attachment_object_key (object_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Feedback message attachments';

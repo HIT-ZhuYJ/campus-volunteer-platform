@@ -32,7 +32,8 @@ public class AuthFilter implements GlobalFilter, Ordered {
             "/activity/image",
             "/announcement/home",
             "/announcement/list",
-            "/announcement/image"
+            "/announcement/image",
+            "/announcement/attachment"
     );
     private static final String TRACE_HEADER = "X-Trace-Id";
 

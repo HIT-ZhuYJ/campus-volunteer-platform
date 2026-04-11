@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <Layout>
     <div class="announcement-detail page-container" v-loading="loading">
       <template v-if="announcement.id">
@@ -29,15 +29,42 @@
           </el-col>
           <el-col :xs="24" :md="8">
             <el-card class="panel" shadow="never">
+              <template #header><h3>关联活动</h3></template>
+              <div v-if="linkedActivities.length > 0" class="linked-list">
+                <button
+                  v-for="activity in linkedActivities"
+                  :key="activity.id"
+                  type="button"
+                  class="linked-item"
+                  @click="goToActivity(activity.id)"
+                >
+                  <span>{{ activity.title || `活动 #${activity.id}` }}</span>
+                  <small>{{ formatActivityMeta(activity) }}</small>
+                </button>
+              </div>
+              <p v-else class="muted">暂无关联活动</p>
+            </el-card>
+
+            <el-card class="panel" shadow="never">
+              <template #header><h3>公告附件</h3></template>
+              <div v-if="attachments.length > 0" class="attachment-list">
+                <a
+                  v-for="attachment in attachments"
+                  :key="attachment.attachmentKey"
+                  class="attachment-item"
+                  :href="attachment.url"
+                  target="_blank"
+                  rel="noopener"
+                >
+                  <span>{{ attachment.fileName || '附件' }}</span>
+                  <small>{{ formatFileSize(attachment.fileSize) }}</small>
+                </a>
+              </div>
+              <p v-else class="muted">暂无附件</p>
+            </el-card>
+
+            <el-card class="panel" shadow="never">
               <template #header><h3>相关操作</h3></template>
-              <el-button
-                v-if="announcement.activityId"
-                type="primary"
-                class="action-btn"
-                @click="router.push(`/activity/${announcement.activityId}`)"
-              >
-                查看关联活动
-              </el-button>
               <el-button class="action-btn" @click="router.push('/home')">返回公告首页</el-button>
             </el-card>
           </el-col>
@@ -68,9 +95,41 @@ const galleryImages = computed(() => {
   return announcement.value.imageUrl ? [announcement.value.imageUrl] : []
 })
 
+const linkedActivities = computed(() => {
+  if (Array.isArray(announcement.value.activities) && announcement.value.activities.length > 0) {
+    return announcement.value.activities
+  }
+  if (announcement.value.activityId) {
+    return [{ id: announcement.value.activityId, title: `活动 #${announcement.value.activityId}` }]
+  }
+  return []
+})
+
+const attachments = computed(() => (
+  Array.isArray(announcement.value.attachments) ? announcement.value.attachments : []
+))
+
 const formatDate = (date) => {
   if (!date) return '--'
   return dayjs(date).format('YYYY-MM-DD HH:mm')
+}
+
+const formatActivityMeta = (activity) => {
+  const parts = []
+  if (activity.location) parts.push(activity.location)
+  if (activity.startTime) parts.push(formatDate(activity.startTime))
+  return parts.join(' · ') || '点击查看活动详情'
+}
+
+const formatFileSize = (size) => {
+  const bytes = Number(size || 0)
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+}
+
+const goToActivity = (id) => {
+  router.push(`/activity/${id}`)
 }
 
 const fetchAnnouncement = async () => {
@@ -164,6 +223,42 @@ onMounted(() => {
   white-space: pre-wrap;
   line-height: 1.9;
   color: #4f556d;
+}
+
+.linked-list,
+.attachment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.linked-item,
+.attachment-item {
+  width: 100%;
+  border: 1px solid rgba(74, 90, 139, 0.14);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #f8fbff;
+  color: #2d3654;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.linked-item span,
+.attachment-item span {
+  display: block;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.linked-item small,
+.attachment-item small,
+.muted {
+  display: block;
+  margin-top: 4px;
+  color: #7b8298;
+  font-size: 12px;
 }
 
 .action-btn {

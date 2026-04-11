@@ -95,3 +95,16 @@ export const uploadAnnouncementImage = (file) => {
     }
   })
 }
+
+export const uploadAnnouncementAttachment = (file) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  return request({
+    url: '/announcement/admin/attachment',
+    method: 'post',
+    data: formData,
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+}

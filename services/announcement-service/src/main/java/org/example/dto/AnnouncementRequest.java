@@ -17,6 +17,10 @@ public class AnnouncementRequest {
 
     private Long activityId;
 
+    private List<Long> activityIds;
+
+    private List<AnnouncementAttachmentRequest> attachments;
+
     private String status;
 
     private Integer sortOrder;

@@ -1,6 +1,7 @@
 package org.example.mcp.tool;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.example.mcp.auth.McpRequestContext;
 import org.example.mcp.gateway.CloudDemoGatewayClient;
 import org.springframework.ai.tool.annotation.Tool;
@@ -19,13 +20,17 @@ public class AnnouncementMcpTools {
 
     private final CloudDemoGatewayClient gatewayClient;
     private final McpRequestContext requestContext;
+    private final ObjectMapper objectMapper;
 
-    public AnnouncementMcpTools(CloudDemoGatewayClient gatewayClient, McpRequestContext requestContext) {
+    public AnnouncementMcpTools(CloudDemoGatewayClient gatewayClient,
+                                McpRequestContext requestContext,
+                                ObjectMapper objectMapper) {
         this.gatewayClient = gatewayClient;
         this.requestContext = requestContext;
+        this.objectMapper = objectMapper;
     }
 
-    @Tool(description = "List homepage announcements. Use this when the user asks for current platform announcements, notices, or the default homepage content. The limit defaults to 5 and is capped at 20. Returns announcement summaries including image URLs and optional linked activityId. Requires a logged-in MCP session.")
+    @Tool(description = "List homepage announcements. Use this when the user asks for current platform announcements, notices, or the default homepage content. The limit defaults to 5 and is capped at 20. Returns announcement summaries including image URLs, linked activityIds/activities, and attachments. Requires a logged-in MCP session.")
     public List<Map<String, Object>> listHomeAnnouncements(Integer limit) {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.add("limit", String.valueOf(limit == null || limit < 1 ? 5 : Math.min(limit, 20)));
@@ -34,7 +39,7 @@ public class AnnouncementMcpTools {
         return toAnnouncementList(data);
     }
 
-    @Tool(description = "List published announcements. Use this when the user wants to browse announcements with pagination. Supports page and size; size is capped at 50. Returns paging metadata and announcement summaries including image URLs and optional linked activityId. Requires a logged-in MCP session.")
+    @Tool(description = "List published announcements. Use this when the user wants to browse announcements with pagination. Supports page and size; size is capped at 50. Returns paging metadata and announcement summaries including image URLs, linked activityIds/activities, and attachments. Requires a logged-in MCP session.")
     public Map<String, Object> listAnnouncements(Integer page, Integer size) {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.add("page", String.valueOf(page == null || page < 1 ? 1 : page));
@@ -44,7 +49,7 @@ public class AnnouncementMcpTools {
         return toPagedAnnouncements(data, page, size);
     }
 
-    @Tool(description = "Get a published announcement detail by announcementId. Use this when the user asks to read a specific announcement, including its content, images, status, publish time, and optional linked activityId. Requires a logged-in MCP session.")
+    @Tool(description = "Get a published announcement detail by announcementId. Use this when the user asks to read a specific announcement, including its content, images, status, publish time, linked activityIds/activities, and attachments. Requires a logged-in MCP session.")
     public Map<String, Object> getAnnouncementDetail(Long announcementId) {
         requireId(announcementId, "announcementId");
         JsonNode data = gatewayClient.get("/announcement/" + announcementId, null, requestContext.requireGatewayToken());
@@ -73,15 +78,18 @@ public class AnnouncementMcpTools {
         return toAnnouncement(data);
     }
 
-    @Tool(description = "Create a new announcement as an administrator. Use this only after the title and content are known. Optional fields include activityId, status, sortOrder, imageKey, and imageKeysCsv. status defaults in the backend when omitted, and imageKeysCsv accepts multiple image keys separated by commas. Returns created=true and the submitted title. Requires an admin MCP session.")
+    @Tool(description = "Create a new announcement as an administrator. Use this only after the title and content are known. Optional fields include activityId for legacy single-activity linking, activityIdsCsv for multiple linked activities, status, sortOrder, imageKey, imageKeysCsv, attachmentsJson, and attachmentKeysCsv. attachmentsJson should be a JSON array of objects with attachmentKey, fileName, contentType, and fileSize, usually from uploadAnnouncementAttachment. Returns created=true and the submitted title. Requires an admin MCP session.")
     public Map<String, Object> createAnnouncement(
             String title,
             String content,
             Long activityId,
+            String activityIdsCsv,
             String status,
             Integer sortOrder,
             String imageKey,
-            String imageKeysCsv
+            String imageKeysCsv,
+            String attachmentsJson,
+            String attachmentKeysCsv
     ) {
         requestContext.requireAdmin();
 
@@ -89,26 +97,32 @@ public class AnnouncementMcpTools {
                 title,
                 content,
                 activityId,
+                activityIdsCsv,
                 status,
                 sortOrder,
                 imageKey,
-                imageKeysCsv
+                imageKeysCsv,
+                attachmentsJson,
+                attachmentKeysCsv
         );
 
         gatewayClient.post("/announcement/admin", request, requestContext.requireGatewayToken());
         return Map.of("created", true, "title", title);
     }
 
-    @Tool(description = "Update an existing announcement as an administrator. announcementId is required. Provide the new title, content, optional linked activityId, status, sortOrder, imageKey, and imageKeysCsv. imageKeysCsv accepts multiple image keys separated by commas. Returns updated=true and the announcementId. Requires an admin MCP session.")
+    @Tool(description = "Update an existing announcement as an administrator. announcementId is required. Provide the new title, content, optional activityId for legacy single-activity linking, activityIdsCsv for multiple linked activities, status, sortOrder, imageKey, imageKeysCsv, attachmentsJson, and attachmentKeysCsv. attachmentsJson should be a JSON array of objects with attachmentKey, fileName, contentType, and fileSize. Returns updated=true and the announcementId. Requires an admin MCP session.")
     public Map<String, Object> updateAnnouncement(
             Long announcementId,
             String title,
             String content,
             Long activityId,
+            String activityIdsCsv,
             String status,
             Integer sortOrder,
             String imageKey,
-            String imageKeysCsv
+            String imageKeysCsv,
+            String attachmentsJson,
+            String attachmentKeysCsv
     ) {
         requestContext.requireAdmin();
         requireId(announcementId, "announcementId");
@@ -117,10 +131,13 @@ public class AnnouncementMcpTools {
                 title,
                 content,
                 activityId,
+                activityIdsCsv,
                 status,
                 sortOrder,
                 imageKey,
-                imageKeysCsv
+                imageKeysCsv,
+                attachmentsJson,
+                attachmentKeysCsv
         );
 
         gatewayClient.put("/announcement/admin/" + announcementId, request, requestContext.requireGatewayToken());
@@ -182,23 +199,54 @@ public class AnnouncementMcpTools {
         return result;
     }
 
+    @Tool(description = "Upload an announcement attachment as an administrator. Use this before createAnnouncement or updateAnnouncement when an attachment such as PDF, Excel, Word, TXT, or CSV must first be stored by the backend. Inputs are filename, contentType, and base64Content. base64Content may be raw Base64 or a data URL. Returns attachmentKey, fileName, contentType, fileSize, url, and an attachment object suitable for attachmentsJson. Requires an admin MCP session.")
+    public Map<String, Object> uploadAnnouncementAttachment(
+            String filename,
+            String contentType,
+            String base64Content
+    ) {
+        requestContext.requireAdmin();
+        requireText(base64Content, "base64Content");
+
+        ParsedBase64File parsedFile = parseBase64File(filename, contentType, base64Content, "announcement-attachment");
+        JsonNode data = gatewayClient.postMultipart(
+                "/announcement/admin/attachment",
+                "file",
+                parsedFile.content(),
+                parsedFile.filename(),
+                parsedFile.contentType(),
+                requestContext.requireGatewayToken()
+        );
+
+        Map<String, Object> attachment = toAttachment(data);
+        Map<String, Object> result = new LinkedHashMap<>(attachment);
+        result.put("attachment", attachment);
+        result.put("byteLength", parsedFile.content().length);
+        return result;
+    }
+
     private Map<String, Object> buildAnnouncementRequest(
             String title,
             String content,
             Long activityId,
+            String activityIdsCsv,
             String status,
             Integer sortOrder,
             String imageKey,
-            String imageKeysCsv
+            String imageKeysCsv,
+            String attachmentsJson,
+            String attachmentKeysCsv
     ) {
         Map<String, Object> request = new LinkedHashMap<>();
         request.put("title", title);
         request.put("content", content);
         request.put("activityId", activityId);
+        request.put("activityIds", parseActivityIds(activityId, activityIdsCsv));
         request.put("status", status);
         request.put("sortOrder", sortOrder);
         request.put("imageKey", imageKey);
         request.put("imageKeys", splitCsv(imageKeysCsv));
+        request.put("attachments", parseAttachments(attachmentsJson, attachmentKeysCsv));
         return request;
     }
 
@@ -235,6 +283,9 @@ public class AnnouncementMcpTools {
         announcement.put("imageKeys", toStringList(item.path("imageKeys")));
         announcement.put("imageUrls", toStringList(item.path("imageUrls")));
         announcement.put("activityId", item.hasNonNull("activityId") ? item.path("activityId").asLong() : null);
+        announcement.put("activityIds", toLongList(item.path("activityIds")));
+        announcement.put("activities", toActivityList(item.path("activities")));
+        announcement.put("attachments", toAttachmentList(item.path("attachments")));
         announcement.put("status", textOrNull(item, "status"));
         announcement.put("sortOrder", item.hasNonNull("sortOrder") ? item.path("sortOrder").asInt() : null);
         announcement.put("publisherId", item.hasNonNull("publisherId") ? item.path("publisherId").asLong() : null);
@@ -242,6 +293,105 @@ public class AnnouncementMcpTools {
         announcement.put("createTime", textOrNull(item, "createTime"));
         announcement.put("updateTime", textOrNull(item, "updateTime"));
         return announcement;
+    }
+
+    private List<Long> parseActivityIds(Long activityId, String activityIdsCsv) {
+        List<Long> values = new ArrayList<>();
+        for (String rawId : splitCsv(activityIdsCsv)) {
+            try {
+                long parsed = Long.parseLong(rawId);
+                if (parsed > 0 && !values.contains(parsed)) {
+                    values.add(parsed);
+                }
+            } catch (NumberFormatException ignored) {
+                throw new IllegalArgumentException("activityIdsCsv must contain numeric activity IDs");
+            }
+        }
+        if (values.isEmpty() && activityId != null && activityId > 0) {
+            values.add(activityId);
+        }
+        return values;
+    }
+
+    private List<Map<String, Object>> parseAttachments(String attachmentsJson, String attachmentKeysCsv) {
+        if (attachmentsJson != null && !attachmentsJson.isBlank()) {
+            try {
+                JsonNode root = objectMapper.readTree(attachmentsJson);
+                if (root.isObject() && root.has("attachment")) {
+                    root = root.path("attachment");
+                }
+                if (root.isObject()) {
+                    Map<String, Object> attachment = toAttachment(root);
+                    return attachment.get("attachmentKey") == null ? List.of() : List.of(attachment);
+                }
+                if (!root.isArray()) {
+                    throw new IllegalArgumentException("attachmentsJson must be a JSON array or object");
+                }
+                List<Map<String, Object>> attachments = new ArrayList<>();
+                for (JsonNode item : root) {
+                    Map<String, Object> attachment = toAttachment(item);
+                    if (attachment.get("attachmentKey") != null) {
+                        attachments.add(attachment);
+                    }
+                }
+                return attachments;
+            } catch (IllegalArgumentException ex) {
+                throw ex;
+            } catch (Exception ex) {
+                throw new IllegalArgumentException("attachmentsJson is not valid JSON", ex);
+            }
+        }
+
+        List<Map<String, Object>> attachments = new ArrayList<>();
+        for (String attachmentKey : splitCsv(attachmentKeysCsv)) {
+            Map<String, Object> attachment = new LinkedHashMap<>();
+            attachment.put("attachmentKey", attachmentKey);
+            attachment.put("fileName", filenameFromObjectKey(attachmentKey));
+            attachment.put("contentType", null);
+            attachment.put("fileSize", 0L);
+            attachments.add(attachment);
+        }
+        return attachments;
+    }
+
+    private List<Map<String, Object>> toActivityList(JsonNode arrayNode) {
+        if (arrayNode == null || !arrayNode.isArray()) {
+            return List.of();
+        }
+        List<Map<String, Object>> activities = new ArrayList<>();
+        for (JsonNode item : arrayNode) {
+            Map<String, Object> activity = new LinkedHashMap<>();
+            activity.put("id", item.hasNonNull("id") ? item.path("id").asLong() : null);
+            activity.put("title", textOrNull(item, "title"));
+            activity.put("location", textOrNull(item, "location"));
+            activity.put("startTime", textOrNull(item, "startTime"));
+            activity.put("endTime", textOrNull(item, "endTime"));
+            activity.put("status", textOrNull(item, "status"));
+            activity.put("category", textOrNull(item, "category"));
+            activities.add(activity);
+        }
+        return activities;
+    }
+
+    private List<Map<String, Object>> toAttachmentList(JsonNode arrayNode) {
+        if (arrayNode == null || !arrayNode.isArray()) {
+            return List.of();
+        }
+        List<Map<String, Object>> attachments = new ArrayList<>();
+        for (JsonNode item : arrayNode) {
+            attachments.add(toAttachment(item));
+        }
+        return attachments;
+    }
+
+    private Map<String, Object> toAttachment(JsonNode item) {
+        Map<String, Object> attachment = new LinkedHashMap<>();
+        attachment.put("attachmentKey", textOrNull(item, "attachmentKey"));
+        attachment.put("fileName", textOrNull(item, "fileName"));
+        attachment.put("contentType", textOrNull(item, "contentType"));
+        attachment.put("fileSize", item.hasNonNull("fileSize") ? item.path("fileSize").asLong() : 0L);
+        attachment.put("url", textOrNull(item, "url"));
+        return attachment;
     }
 
     private void addIfHasText(MultiValueMap<String, String> params, String key, String value) {
@@ -294,8 +444,26 @@ public class AnnouncementMcpTools {
         return values;
     }
 
+    private List<Long> toLongList(JsonNode arrayNode) {
+        if (arrayNode == null || !arrayNode.isArray()) {
+            return List.of();
+        }
+
+        List<Long> values = new ArrayList<>();
+        for (JsonNode item : arrayNode) {
+            if (item.canConvertToLong()) {
+                values.add(item.asLong());
+            }
+        }
+        return values;
+    }
+
     private ParsedBase64File parseBase64File(String filename, String contentType, String base64Content) {
-        String actualFilename = filename == null || filename.isBlank() ? "announcement-image" : filename.trim();
+        return parseBase64File(filename, contentType, base64Content, "announcement-image");
+    }
+
+    private ParsedBase64File parseBase64File(String filename, String contentType, String base64Content, String defaultFilename) {
+        String actualFilename = filename == null || filename.isBlank() ? defaultFilename : filename.trim();
         String actualContentType = contentType == null ? "" : contentType.trim();
         String actualBase64 = base64Content.trim();
 
@@ -330,8 +498,26 @@ public class AnnouncementMcpTools {
             case "image/png" -> ".png";
             case "image/gif" -> ".gif";
             case "image/webp" -> ".webp";
+            case "application/pdf" -> ".pdf";
+            case "application/vnd.ms-excel" -> ".xls";
+            case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" -> ".xlsx";
+            case "application/msword" -> ".doc";
+            case "application/vnd.openxmlformats-officedocument.wordprocessingml.document" -> ".docx";
+            case "text/plain" -> ".txt";
+            case "text/csv" -> ".csv";
+            case "", "application/octet-stream" -> ".bin";
             default -> ".jpg";
         };
+    }
+
+    private String filenameFromObjectKey(String objectKey) {
+        if (objectKey == null || objectKey.isBlank()) {
+            return "attachment";
+        }
+        int slashIndex = objectKey.lastIndexOf('/');
+        return slashIndex >= 0 && slashIndex < objectKey.length() - 1
+                ? objectKey.substring(slashIndex + 1)
+                : objectKey;
     }
 
     private record ParsedBase64File(String filename, String contentType, byte[] content) {

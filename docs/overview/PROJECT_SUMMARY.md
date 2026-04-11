@@ -8,7 +8,8 @@
 - 前端可开发模式运行，也可构建后交给 Nginx 托管
 - `monitor-service` 支持通过 `/monitor/` 反向代理访问
 - `mcp-service` 支持通过 `/mcp` 对外提供 MCP 能力
-- `announcement-service` 支持首页公告、公告图片和关联活动跳转
+- `announcement-service` 支持首页公告、公告图片、公告附件和关联活动跳转
+- `feedback-service` 支持意见反馈工单、消息回复、附件和管理员处理
 - Docker Compose 可一键启动 MySQL、Redis、Nacos、MinIO、前端与全部后端服务
 - 本机 Jenkins 可先执行 `mvn -B test` 再执行 `docker compose up -d --build`
 
@@ -19,10 +20,11 @@
 | `services/common` | 统一结果结构、异常与 JWT 工具 |
 | `services/user-service` | 注册登录、资料维护、志愿时长查询 |
 | `services/activity-service` | 活动管理、报名、签到、时长核销、AI 文案、图片上传、Excel 导出 |
-| `services/announcement-service` | 公告发布、编辑、下线、图片上传和首页公告展示 |
+| `services/announcement-service` | 公告发布、编辑、下线、图片/附件上传、关联活动和首页公告展示 |
+| `services/feedback-service` | 意见反馈创建、回复、关闭、驳回、优先级和附件管理 |
 | `services/gateway-service` | 统一入口、JWT 鉴权、请求头透传 |
 | `services/monitor-service` | Spring Boot Admin 监控中心 |
-| `services/mcp-service` | 独立 MCP Server，封装用户与活动相关工具 |
+| `services/mcp-service` | 独立 MCP Server，封装用户、活动、公告与意见反馈相关工具 |
 | `frontend` | Vue 3 前端页面与后台管理界面 |
 | `database/init.sql` | 数据库结构、默认账号、活动与报名示例数据 |
 | `deploy/nginx` | 本机与容器代理配置 |
@@ -51,12 +53,13 @@
 ## 最近对齐的能力
 
 - 活动多图上传与详情多图展示
-- 公告独立微服务与公告首页
+- 公告独立微服务、公告首页、附件上传和多活动关联
+- 意见反馈独立微服务、用户反馈入口与管理员反馈工单处理
 - 用户取消未开始活动的报名
 - 用户导出已核销志愿足迹 Excel
 - `activity/list` 支持 `status`、`category`、`recruitmentPhase` 筛选
 - `mcp-service` 支持 OAuth 授权码登录
-- MCP 工具已覆盖报名、资料、导出、活动管理、签到和批量核销场景
+- MCP 工具已覆盖报名、资料、导出、活动管理、公告管理、反馈工单、签到和批量核销场景
 
 ## 示例数据说明
 

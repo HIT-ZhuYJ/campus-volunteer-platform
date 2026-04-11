@@ -5,10 +5,13 @@ import org.example.common.result.Result;
 import org.example.dto.AnnouncementRequest;
 import org.example.service.AnnouncementService;
 import org.example.service.MinioStorageService;
+import org.example.vo.AnnouncementAttachmentUploadVO;
 import org.example.vo.AnnouncementImageUploadVO;
 import org.example.vo.AnnouncementVO;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.CacheControl;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
@@ -25,6 +28,7 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -152,6 +156,24 @@ public class AnnouncementController {
         ));
     }
 
+    @PostMapping(value = "/admin/attachment", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Result<AnnouncementAttachmentUploadVO> uploadAnnouncementAttachment(
+            @RequestPart("file") MultipartFile file,
+            @RequestHeader("X-User-Role") String role) {
+        if (!"ADMIN".equals(role)) {
+            return Result.forbidden("Only administrators can upload announcement attachments");
+        }
+        String attachmentKey = minioStorageService.uploadAnnouncementAttachment(file);
+        String fileName = file.getOriginalFilename();
+        return Result.success(new AnnouncementAttachmentUploadVO(
+                attachmentKey,
+                fileName,
+                file.getContentType(),
+                file.getSize(),
+                minioStorageService.buildAnnouncementAttachmentUrl(attachmentKey, fileName)
+        ));
+    }
+
     @GetMapping("/image")
     public ResponseEntity<InputStreamResource> getAnnouncementImage(@RequestParam String objectKey) {
         var stat = minioStorageService.statObject(objectKey);
@@ -163,6 +185,27 @@ public class AnnouncementController {
                 .contentType(MediaType.parseMediaType(contentType))
                 .contentLength(stat.size())
                 .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
+                .body(new InputStreamResource(minioStorageService.getObjectStream(objectKey)));
+    }
+
+    @GetMapping("/attachment")
+    public ResponseEntity<InputStreamResource> getAnnouncementAttachment(
+            @RequestParam String objectKey,
+            @RequestParam(required = false) String fileName) {
+        var stat = minioStorageService.statObject(objectKey);
+        String contentType = StringUtils.hasText(stat.contentType())
+                ? stat.contentType()
+                : MediaType.APPLICATION_OCTET_STREAM_VALUE;
+        String downloadName = StringUtils.hasText(fileName) ? fileName : objectKey;
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(contentType))
+                .contentLength(stat.size())
+                .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                        .filename(downloadName, StandardCharsets.UTF_8)
+                        .build()
+                        .toString())
                 .body(new InputStreamResource(minioStorageService.getObjectStream(objectKey)));
     }
 }
