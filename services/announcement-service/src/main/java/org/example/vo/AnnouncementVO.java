@@ -25,6 +25,12 @@ public class AnnouncementVO implements Serializable {
 
     private Long activityId;
 
+    private List<Long> activityIds;
+
+    private List<AnnouncementActivityVO> activities;
+
+    private List<AnnouncementAttachmentVO> attachments;
+
     private String status;
 
     private Integer sortOrder;

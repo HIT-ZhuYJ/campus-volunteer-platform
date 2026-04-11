@@ -31,6 +31,7 @@ Browser
 | user-service | 8100 | 容器内部 |
 | activity-service | 8200 | 容器内部 |
 | announcement-service | 8300 | 容器内部 |
+| feedback-service | 8400 | 容器内部 |
 | gateway-service | 9000 | 9001 |
 | monitor-service | 9100 | 9101 |
 | mcp-service | 9300 | 由前端 Nginx 统一代理 |
@@ -66,6 +67,8 @@ mvn clean install -DskipTests
 
 - `UserApplication`
 - `ActivityApplication`
+- `AnnouncementApplication`
+- `FeedbackApplication`
 - `GatewayApplication`
 - `MonitorApplication`
 - `McpApplication`
@@ -122,6 +125,7 @@ cd D:\nginx-1.28.3
 - `user-service`
 - `activity-service`
 - `announcement-service`
+- `feedback-service`
 - `gateway-service`
 - `monitor-service`
 - `mcp-service`
@@ -172,6 +176,7 @@ Docker 模式下的默认约定：
 
 - `activity-service` 默认连接 `http://minio:9000`
 - `announcement-service` 默认连接 `http://minio:9000`
+- `feedback-service` 默认连接 `http://minio:9000`
 - `MINIO_PUBLIC_BASE_URL` 默认为 `/api`
 - `mcp-service` 默认回调 `http://gateway-service:9000`
 
@@ -182,6 +187,7 @@ Compose 当前会将容器日志挂载到仓库根目录：
 - `./user-service/logs`
 - `./activity-service/logs`
 - `./announcement-service/logs`
+- `./feedback-service/logs`
 - `./gateway-service/logs`
 - `./mcp-service/logs`
 - `./monitor-service/logs`
@@ -190,16 +196,18 @@ Compose 当前会将容器日志挂载到仓库根目录：
 
 ### 4.3 已有 Docker 数据库升级
 
-如果 Docker MySQL 已经初始化过，`database/init.sql` 不会因为文件更新而再次执行。新增公告服务后，旧的 `mysql-data` 卷需要手动补建公告表：
+如果 Docker MySQL 已经初始化过，`database/init.sql` 不会因为文件更新而再次执行。新增公告服务和意见反馈服务后，旧的 `mysql-data` 卷需要手动补建相关表：
 
 ```bash
 docker compose exec -T mysql mysql --default-character-set=utf8mb4 -uroot -p123888 volunteer_platform < database/migrations/20260411_add_announcement.sql
+docker compose exec -T mysql mysql --default-character-set=utf8mb4 -uroot -p123888 volunteer_platform < database/migrations/20260411_add_feedback.sql
 ```
 
 执行后可以验证：
 
 ```bash
 docker compose exec mysql mysql -uroot -p123888 -e "SHOW TABLES LIKE 'vol_announcement';" volunteer_platform
+docker compose exec mysql mysql -uroot -p123888 -e "SHOW TABLES LIKE 'feedback%';" volunteer_platform
 ```
 
 ### 4.4 常见维护命令
@@ -207,7 +215,13 @@ docker compose exec mysql mysql -uroot -p123888 -e "SHOW TABLES LIKE 'vol_announ
 重建代理相关服务：
 
 ```bash
-docker compose up -d --build frontend monitor-service mcp-service announcement-service
+docker compose up -d --build frontend monitor-service mcp-service announcement-service feedback-service
+```
+
+如果只重建意见反馈相关服务：
+
+```bash
+docker compose up -d --build feedback-service gateway-service frontend mcp-service
 ```
 
 查看容器：
@@ -223,7 +237,7 @@ docker compose down -v
 docker compose up -d --build
 ```
 
-### 4.4 Docker 中文乱码排查
+### 4.5 Docker 中文乱码排查
 
 如果 Docker 页面或接口中的中文已经出现乱码，通常是旧 MySQL 数据卷中保存了错误编码的数据。建议执行：
 
@@ -240,6 +254,7 @@ docker compose up -d --build
 docker build -f services/user-service/Dockerfile -t cloud-demo/user-service:latest .
 docker build -f services/activity-service/Dockerfile -t cloud-demo/activity-service:latest .
 docker build -f services/announcement-service/Dockerfile -t cloud-demo/announcement-service:latest .
+docker build -f services/feedback-service/Dockerfile -t cloud-demo/feedback-service:latest .
 docker build -f services/gateway-service/Dockerfile -t cloud-demo/gateway-service:latest .
 docker build -f services/monitor-service/Dockerfile -t cloud-demo/monitor-service:latest .
 docker build -f services/mcp-service/Dockerfile -t cloud-demo/mcp-service:latest .
@@ -281,7 +296,7 @@ docker compose ps
 
 - `server.address=0.0.0.0`
 - `server.forward-headers-strategy=framework`
-- Nacos discovery 自动发现已注册的 `user-service`、`activity-service`、`announcement-service`、`gateway-service`
+- Nacos discovery 自动发现已注册的 `user-service`、`activity-service`、`announcement-service`、`feedback-service`、`gateway-service`
 
 因此推荐通过：
 

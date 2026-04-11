@@ -12,7 +12,8 @@ cloud-demo/
 │  ├─ testing/
 │  └─ README.md
 ├─ database/
-│  └─ init.sql
+│  ├─ init.sql
+│  └─ migrations/
 ├─ deploy/
 │  ├─ docker/
 │  │  └─ backend.Dockerfile
@@ -38,6 +39,7 @@ cloud-demo/
 │  ├─ common/
 │  ├─ activity-service/
 │  ├─ announcement-service/
+│  ├─ feedback-service/
 │  ├─ gateway-service/
 │  ├─ mcp-service/
 │  ├─ monitor-service/
@@ -45,6 +47,7 @@ cloud-demo/
 │  └─ pom.xml
 ├─ activity-service/        # 运行期日志目录
 ├─ announcement-service/    # 运行期日志目录
+├─ feedback-service/        # 运行期日志目录
 ├─ gateway-service/         # 运行期日志目录
 ├─ mcp-service/             # 运行期日志目录
 ├─ monitor-service/         # 运行期日志目录
@@ -65,7 +68,8 @@ cloud-demo/
 - `common/`：统一结果、异常、JWT 工具
 - `user-service/`：用户注册、登录、资料维护、时长统计
 - `activity-service/`：活动、报名、签到、时长核销、AI 文案、图片上传
-- `announcement-service/`：公告发布、首页公告、公告图片上传和关联活动跳转
+- `announcement-service/`：公告发布、首页公告、公告图片/附件上传和关联活动跳转
+- `feedback-service/`：意见反馈工单、消息回复、附件上传和管理员处理
 - `gateway-service/`：统一入口、JWT 鉴权、请求头注入
 - `monitor-service/`：Spring Boot Admin 服务端
 - `mcp-service/`：MCP Server 与 OAuth 端点
@@ -80,8 +84,9 @@ cloud-demo/
 
 ### `database/`
 
-- `init.sql` 为数据库唯一初始化入口
+- `init.sql` 为数据库主初始化入口
 - 包含建表、默认账号、默认活动与报名记录
+- `migrations/` 保存已有数据库的增量升级脚本，例如公告表和反馈表
 
 ### `deploy/nginx/`
 
@@ -93,6 +98,7 @@ cloud-demo/
 - `user-service/`
 - `activity-service/`
 - `announcement-service/`
+- `feedback-service/`
 - `gateway-service/`
 - `mcp-service/`
 - `monitor-service/`

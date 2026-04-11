@@ -42,6 +42,24 @@ const routes = [
     meta: { title: '活动详情', requireAuth: true }
   },
   {
+    path: '/feedback',
+    name: 'FeedbackCreate',
+    component: () => import('@/views/FeedbackCreate.vue'),
+    meta: { title: '提交反馈', requireAuth: true }
+  },
+  {
+    path: '/my-feedback',
+    name: 'MyFeedback',
+    component: () => import('@/views/MyFeedback.vue'),
+    meta: { title: '我的反馈', requireAuth: true }
+  },
+  {
+    path: '/feedback/:id',
+    name: 'FeedbackDetail',
+    component: () => import('@/views/FeedbackDetail.vue'),
+    meta: { title: '反馈详情', requireAuth: true }
+  },
+  {
     path: '/my',
     name: 'My',
     component: () => import('@/views/MyCenter.vue'),
@@ -64,6 +82,12 @@ const routes = [
         name: 'AdminAnnouncements',
         component: () => import('@/views/admin/AnnouncementManage.vue'),
         meta: { title: '公告管理' }
+      },
+      {
+        path: 'feedback',
+        name: 'AdminFeedback',
+        component: () => import('@/views/admin/FeedbackManage.vue'),
+        meta: { title: '反馈工单' }
       },
       {
         path: 'activities',

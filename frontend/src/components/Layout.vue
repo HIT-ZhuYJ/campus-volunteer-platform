@@ -20,6 +20,7 @@
           >
             <el-menu-item index="/home">首页</el-menu-item>
             <el-menu-item index="/activities">活动</el-menu-item>
+            <el-menu-item index="/my-feedback">反馈</el-menu-item>
             <el-menu-item index="/my">我的志愿足迹</el-menu-item>
             <el-menu-item v-if="userStore.isAdmin" index="/admin/activities">管理后台</el-menu-item>
           </el-menu>
@@ -62,6 +63,7 @@
         <el-menu :default-active="activeMenu" @select="handleMobileMenuSelect" class="drawer-menu">
           <el-menu-item index="/home">首页</el-menu-item>
           <el-menu-item index="/activities">活动</el-menu-item>
+          <el-menu-item index="/my-feedback">反馈</el-menu-item>
           <el-menu-item index="/my">我的志愿足迹</el-menu-item>
           <el-menu-item v-if="userStore.isAdmin" index="/admin/activities">管理后台</el-menu-item>
           <el-divider />

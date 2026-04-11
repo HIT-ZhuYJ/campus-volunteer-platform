@@ -52,6 +52,13 @@ CLOUD_DEMO_API_BASE_URL
 - `updateMyProfile`
 - `updateMyPassword`
 - `exportMyConfirmedRegistrations`
+- `createFeedback`
+- `listMyFeedback`
+- `getFeedbackDetail`
+- `replyMyFeedback`
+- `closeMyFeedback`
+- `uploadFeedbackAttachment`
+- `downloadFeedbackAttachment`
 
 管理员工具：
 
@@ -78,6 +85,25 @@ CLOUD_DEMO_API_BASE_URL
 - `offlineAnnouncement`
 - `deleteAnnouncement`
 - `uploadAnnouncementImage`
+- `uploadAnnouncementAttachment`
+- `listAdminFeedback`
+- `getAdminFeedbackDetail`
+- `replyFeedbackAsAdmin`
+- `closeFeedbackAsAdmin`
+- `rejectFeedbackAsAdmin`
+- `updateFeedbackPriority`
+
+公告工具说明：
+
+- `listHomeAnnouncements`、`listAnnouncements`、`getAnnouncementDetail`、`getAdminAnnouncementDetail` 会返回 `activityIds`、`activities` 和 `attachments`。
+- `createAnnouncement`、`updateAnnouncement` 兼容旧的 `activityId`，也支持 `activityIdsCsv` 关联多个活动；附件可通过 `attachmentsJson` 或 `attachmentKeysCsv` 传入。
+
+意见反馈工具说明：
+
+- `createFeedback`、`replyMyFeedback`、`replyFeedbackAsAdmin` 可通过 `attachmentsJson` 绑定上传后的附件。
+- `uploadFeedbackAttachment` 支持 JPG、PNG、GIF、WEBP、PDF、Excel、Word、TXT 和 CSV。
+- `listAdminFeedback` 支持按 `status`、`category`、`priority` 和 `keyword` 筛选。
+- `downloadFeedbackAttachment` 会复用业务权限校验，普通用户只能访问自己的反馈附件。
 
 补充工具：
 
@@ -148,6 +174,7 @@ http://localhost:8081/mcp
 
 - `src/main/java/org/example/mcp/tool/ActivityMcpTools.java`
 - `src/main/java/org/example/mcp/tool/AnnouncementMcpTools.java`
+- `src/main/java/org/example/mcp/tool/FeedbackMcpTools.java`
 - `src/main/java/org/example/mcp/tool/UserMcpTools.java`
 - `src/main/java/org/example/mcp/auth/AuthController.java`
 - `src/main/java/org/example/mcp/auth/McpAccessTokenFilter.java`

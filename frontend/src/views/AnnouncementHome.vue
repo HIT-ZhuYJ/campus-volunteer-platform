@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <Layout>
     <div class="announcement-home page-container" v-loading="loading">
       <section class="home-hero">
@@ -38,16 +38,19 @@
               </div>
               <h3>{{ item.title }}</h3>
               <p>{{ item.content }}</p>
-              <div class="card-actions">
-                <el-button type="primary" link @click.stop="goToAnnouncement(item.id)">查看公告</el-button>
+              <div v-if="getLinkedActivities(item).length > 0" class="linked-activities">
                 <el-button
-                  v-if="item.activityId"
+                  v-for="activity in getLinkedActivities(item)"
+                  :key="activity.id"
                   type="success"
                   link
-                  @click.stop="goToActivity(item.activityId)"
+                  @click.stop="goToActivity(activity.id)"
                 >
-                  查看关联活动
+                  {{ activity.title || `活动 #${activity.id}` }}
                 </el-button>
+              </div>
+              <div class="card-actions">
+                <el-button type="primary" link @click.stop="goToAnnouncement(item.id)">查看公告</el-button>
               </div>
             </div>
           </article>
@@ -71,6 +74,16 @@ const announcements = ref([])
 const formatDate = (date) => {
   if (!date) return '--'
   return dayjs(date).format('YYYY-MM-DD HH:mm')
+}
+
+const getLinkedActivities = (item) => {
+  if (Array.isArray(item.activities) && item.activities.length > 0) {
+    return item.activities
+  }
+  if (item.activityId) {
+    return [{ id: item.activityId, title: `活动 #${item.activityId}` }]
+  }
+  return []
 }
 
 const goToAnnouncement = (id) => {
@@ -135,7 +148,7 @@ onMounted(() => {
 }
 
 .hero-action {
-  border-radius: 999px;
+  border-radius: 8px;
   min-width: 140px;
   background: rgba(255, 255, 255, 0.22);
 }
@@ -238,6 +251,7 @@ onMounted(() => {
   overflow: hidden;
 }
 
+.linked-activities,
 .card-actions {
   margin-top: 12px;
   display: flex;

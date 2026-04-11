@@ -24,7 +24,7 @@ mysql -u root -p < database/init.sql
 - `database/init.sql` 会重建 `volunteer_platform`
 - 请勿直接在已有正式数据的库上执行
 - 脚本会导入默认账号、20 条活动及报名记录
-- Docker MySQL 已经初始化过时，更新 `database/init.sql` 不会自动补表；新增公告功能可执行 `database/migrations/20260411_add_announcement.sql`
+- Docker MySQL 已经初始化过时，更新 `database/init.sql` 不会自动补表；新增公告功能可执行 `database/migrations/20260411_add_announcement.sql`，新增意见反馈功能可执行 `database/migrations/20260411_add_feedback.sql`
 
 ## 3. 启动 Redis、Nacos、MinIO
 
@@ -86,15 +86,18 @@ mvn clean install -DskipTests
 
 1. `UserApplication`
 2. `ActivityApplication`
-3. `GatewayApplication`
-4. `MonitorApplication`
-5. `McpApplication`
+3. `AnnouncementApplication`
+4. `FeedbackApplication`
+5. `GatewayApplication`
+6. `MonitorApplication`
+7. `McpApplication`
 
 本机默认端口：
 
 - `8100`：`user-service`
 - `8200`：`activity-service`
 - `8300`：`announcement-service`
+- `8400`：`feedback-service`
 - `9000`：`gateway-service`
 - `9100`：`monitor-service`
 - `9300`：`mcp-service`
@@ -103,6 +106,7 @@ mvn clean install -DskipTests
 
 - `activity-service` 已内置 MinIO 默认值
 - `announcement-service` 已内置 MinIO 默认值
+- `feedback-service` 已内置 MinIO 默认值
 - `mcp-service` 默认回调 `http://127.0.0.1:9000`
 - 如需覆盖，可通过环境变量修改 `MINIO_*`、`CLOUD_DEMO_API_BASE_URL` 等配置
 
@@ -156,6 +160,7 @@ npm run build
 curl http://127.0.0.1/
 curl "http://127.0.0.1:9000/activity/list?page=1&size=10"
 curl "http://127.0.0.1:9000/announcement/home?limit=5"
+curl http://127.0.0.1:8400/actuator/health
 curl http://127.0.0.1:9100/actuator/health
 curl http://127.0.0.1:9300/actuator/health
 ```

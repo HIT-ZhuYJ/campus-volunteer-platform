@@ -281,6 +281,13 @@ Docker 模式：
 - `updateMyProfile`
 - `updateMyPassword`
 - `exportMyConfirmedRegistrations`
+- `createFeedback`
+- `listMyFeedback`
+- `getFeedbackDetail`
+- `replyMyFeedback`
+- `closeMyFeedback`
+- `uploadFeedbackAttachment`
+- `downloadFeedbackAttachment`
 
 ### 管理员工具
 
@@ -307,6 +314,13 @@ Docker 模式：
 - `offlineAnnouncement`
 - `deleteAnnouncement`
 - `uploadAnnouncementImage`
+- `uploadAnnouncementAttachment`
+- `listAdminFeedback`
+- `getAdminFeedbackDetail`
+- `replyFeedbackAsAdmin`
+- `closeFeedbackAsAdmin`
+- `rejectFeedbackAsAdmin`
+- `updateFeedbackPriority`
 
 ### 额外工具
 
@@ -317,6 +331,14 @@ Docker 模式：
 - `registerUser` 的实现已存在，但当前 `/mcp` 整体受 Bearer Token 保护，因此在实际 Codex CLI 使用中，仍建议先完成 MCP 登录
 - 普通用户即使知道管理员工具名，也无法越权调用
 
+### 意见反馈工具说明
+
+- 分类 `category` 支持 `QUESTION`、`SUGGESTION`、`BUG`、`COMPLAINT`、`OTHER`。
+- 状态 `status` 支持 `OPEN`、`REPLIED`、`CLOSED`、`REJECTED`。
+- 优先级 `priority` 支持 `LOW`、`NORMAL`、`HIGH`、`URGENT`。
+- `uploadFeedbackAttachment` 返回的 `attachment` 对象可直接序列化为 `attachmentsJson`，传给 `createFeedback`、`replyMyFeedback` 或 `replyFeedbackAsAdmin`。
+- `downloadFeedbackAttachment` 会复用业务权限校验：管理员可下载任意反馈附件，普通用户只能下载自己反馈下的附件。
+
 ## 8. 推荐验证顺序
 
 1. `curl.exe "http://localhost/.well-known/oauth-authorization-server"`
@@ -325,8 +347,19 @@ Docker 模式：
 4. `codex mcp add cloud-demo --url http://localhost/mcp`
 5. `codex mcp login cloud-demo`
 6. 登录后尝试查询：`请通过 cloud-demo MCP 列出最近 5 个志愿活动`
+7. 反馈工具可用性验证：`创建一条测试反馈，读取详情，追加回复，然后关闭它`
 
 Docker 模式下只需把 `localhost` 替换为 `localhost:8081`。
+
+已验证的反馈 MCP 调用链：
+
+- `listMyFeedback`
+- `createFeedback`
+- `getFeedbackDetail`
+- `replyMyFeedback`
+- `closeMyFeedback`
+- `listAdminFeedback`
+- `getAdminFeedbackDetail`
 
 ## 9. 常见问题
 
@@ -378,6 +411,7 @@ Invoke-RestMethod -Method Post -Uri "http://localhost/mcp/auth/login" -ContentTy
 - [services/mcp-service/README.md](../../services/mcp-service/README.md)
 - [services/mcp-service/src/main/java/org/example/mcp/tool/ActivityMcpTools.java](../../services/mcp-service/src/main/java/org/example/mcp/tool/ActivityMcpTools.java)
 - [services/mcp-service/src/main/java/org/example/mcp/tool/AnnouncementMcpTools.java](../../services/mcp-service/src/main/java/org/example/mcp/tool/AnnouncementMcpTools.java)
+- [services/mcp-service/src/main/java/org/example/mcp/tool/FeedbackMcpTools.java](../../services/mcp-service/src/main/java/org/example/mcp/tool/FeedbackMcpTools.java)
 - [services/mcp-service/src/main/java/org/example/mcp/tool/UserMcpTools.java](../../services/mcp-service/src/main/java/org/example/mcp/tool/UserMcpTools.java)
 - [services/mcp-service/src/main/java/org/example/mcp/auth/AuthController.java](../../services/mcp-service/src/main/java/org/example/mcp/auth/AuthController.java)
 - [services/mcp-service/src/main/java/org/example/mcp/auth/McpAccessTokenFilter.java](../../services/mcp-service/src/main/java/org/example/mcp/auth/McpAccessTokenFilter.java)

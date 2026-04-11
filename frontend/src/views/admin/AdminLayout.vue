@@ -9,6 +9,7 @@
 
         <el-menu :default-active="activeMenu" router class="menu" @select="handleMenuSelect">
           <el-menu-item index="/admin/announcements">公告管理</el-menu-item>
+          <el-menu-item index="/admin/feedback">反馈工单</el-menu-item>
           <el-menu-item index="/admin/activities">活动管理</el-menu-item>
           <el-menu-item index="/admin/create">发布活动</el-menu-item>
           <el-menu-item index="/admin/checkin">活动签到</el-menu-item>
@@ -53,6 +54,7 @@
       </div>
       <el-menu :default-active="activeMenu" router class="drawer-menu" @select="handleMenuSelect">
         <el-menu-item index="/admin/announcements">公告管理</el-menu-item>
+        <el-menu-item index="/admin/feedback">反馈工单</el-menu-item>
         <el-menu-item index="/admin/activities">活动管理</el-menu-item>
         <el-menu-item index="/admin/create">发布活动</el-menu-item>
         <el-menu-item index="/admin/checkin">活动签到</el-menu-item>

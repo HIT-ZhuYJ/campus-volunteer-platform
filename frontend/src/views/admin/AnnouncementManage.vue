@@ -1,11 +1,11 @@
-<template>
+﻿<template>
   <div class="announcement-manage">
     <el-card>
       <template #header>
         <div class="head">
           <div>
             <h3>公告管理</h3>
-            <p>发布首页公告，可关联具体志愿活动。</p>
+            <p>发布首页公告，可关联一个或多个志愿活动，并添加附件。</p>
           </div>
           <el-button type="primary" @click="openCreateDialog">发布公告</el-button>
         </div>
@@ -27,12 +27,28 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="关联活动" width="120">
+        <el-table-column label="关联活动" min-width="220">
           <template #default="{ row }">
-            <el-button v-if="row.activityId" type="primary" link @click="router.push(`/activity/${row.activityId}`)">
-              活动 #{{ row.activityId }}
-            </el-button>
+            <div v-if="getLinkedActivities(row).length > 0" class="activity-links">
+              <el-button
+                v-for="activity in getLinkedActivities(row)"
+                :key="activity.id"
+                type="primary"
+                link
+                @click="router.push(`/activity/${activity.id}`)"
+              >
+                {{ activity.title || `活动 #${activity.id}` }}
+              </el-button>
+            </div>
             <span v-else class="muted">未关联</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="附件" width="90">
+          <template #default="{ row }">
+            <el-tag v-if="Array.isArray(row.attachments) && row.attachments.length > 0" type="warning">
+              {{ row.attachments.length }} 个
+            </el-tag>
+            <span v-else class="muted">无</span>
           </template>
         </el-table-column>
         <el-table-column label="排序" prop="sortOrder" width="80" />
@@ -83,7 +99,7 @@
     <el-dialog
       v-model="dialogVisible"
       :title="editingId ? '编辑公告' : '发布公告'"
-      width="min(720px, 96vw)"
+      width="min(760px, 96vw)"
       destroy-on-close
       @closed="resetForm"
     >
@@ -93,10 +109,13 @@
         </el-form-item>
         <el-form-item label="关联活动">
           <el-select
-            v-model="form.activityId"
-            placeholder="可选，选择后公告会跳转到活动详情"
+            v-model="form.activityIds"
+            placeholder="可选，选择后公告详情会展示活动列表"
             clearable
             filterable
+            multiple
+            collapse-tags
+            collapse-tags-tooltip
             style="width: 100%"
           >
             <el-option
@@ -128,6 +147,12 @@
             @update:image-urls="(value) => { form.imageUrls = value }"
           />
         </el-form-item>
+        <el-form-item label="公告附件">
+          <AnnouncementAttachmentUploader
+            :attachments="form.attachments"
+            @update:attachments="(value) => { form.attachments = value }"
+          />
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
@@ -152,6 +177,7 @@ import {
   updateAnnouncement
 } from '@/api/announcement'
 import { getActivityList } from '@/api/activity'
+import AnnouncementAttachmentUploader from '@/components/AnnouncementAttachmentUploader.vue'
 import AnnouncementImageUploader from '@/components/AnnouncementImageUploader.vue'
 
 const router = useRouter()
@@ -175,7 +201,8 @@ const form = reactive({
   content: '',
   imageKeys: [],
   imageUrls: [],
-  activityId: null,
+  activityIds: [],
+  attachments: [],
   status: 'PUBLISHED',
   sortOrder: 0
 })
@@ -195,7 +222,14 @@ const buildPayload = () => ({
   title: form.title,
   content: form.content,
   imageKeys: form.imageKeys,
-  activityId: form.activityId || null,
+  activityId: form.activityIds[0] || null,
+  activityIds: form.activityIds,
+  attachments: form.attachments.map(({ attachmentKey, fileName, contentType, fileSize }) => ({
+    attachmentKey,
+    fileName,
+    contentType,
+    fileSize
+  })),
   status: form.status,
   sortOrder: form.sortOrder
 })
@@ -207,10 +241,31 @@ const resetForm = () => {
     content: '',
     imageKeys: [],
     imageUrls: [],
-    activityId: null,
+    activityIds: [],
+    attachments: [],
     status: 'PUBLISHED',
     sortOrder: 0
   })
+}
+
+const getLinkedActivities = (row) => {
+  if (Array.isArray(row.activities) && row.activities.length > 0) {
+    return row.activities
+  }
+  if (row.activityId) {
+    return [{ id: row.activityId, title: `活动 #${row.activityId}` }]
+  }
+  return []
+}
+
+const getLinkedActivityIds = (data) => {
+  if (Array.isArray(data.activityIds) && data.activityIds.length > 0) {
+    return data.activityIds
+  }
+  if (Array.isArray(data.activities) && data.activities.length > 0) {
+    return data.activities.map(activity => activity.id).filter(Boolean)
+  }
+  return data.activityId ? [data.activityId] : []
 }
 
 const fetchAnnouncements = async () => {
@@ -259,7 +314,8 @@ const openEditDialog = async (row) => {
       content: data.content || '',
       imageKeys: data.imageKeys || (data.imageKey ? [data.imageKey] : []),
       imageUrls: data.imageUrls || (data.imageUrl ? [data.imageUrl] : []),
-      activityId: data.activityId || null,
+      activityIds: getLinkedActivityIds(data),
+      attachments: data.attachments || [],
       status: data.status || 'PUBLISHED',
       sortOrder: data.sortOrder ?? 0
     })
@@ -304,7 +360,7 @@ const handleOffline = async (row) => {
 }
 
 const handleDelete = (row) => {
-  ElMessageBox.confirm(`确定删除公告「${row.title}」吗？`, '删除公告', {
+  ElMessageBox.confirm(`确定删除公告“${row.title}”吗？`, '删除公告', {
     type: 'warning',
     confirmButtonText: '确定删除',
     cancelButtonText: '取消'
@@ -355,6 +411,13 @@ onMounted(() => {
   justify-content: flex-end;
 }
 
+.activity-links {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
 .muted,
 .tip {
   color: var(--el-text-color-secondary);
@@ -372,7 +435,7 @@ onMounted(() => {
 }
 
 .announcement-manage :deep(.el-table__inner-wrapper) {
-  min-width: 980px;
+  min-width: 1100px;
 }
 
 .announcement-manage :deep(.el-table__body-wrapper),

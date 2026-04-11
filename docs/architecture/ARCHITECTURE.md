@@ -24,7 +24,8 @@ Nginx :80
                  gateway-service
                   ├─ user-service
                   ├─ activity-service
-                  └─ announcement-service
+                  ├─ announcement-service
+                  └─ feedback-service
 ```
 
 ### 依赖基础设施
@@ -32,7 +33,7 @@ Nginx :80
 - MySQL：业务数据
 - Redis：活动库存与报名并发控制
 - Nacos：服务注册与发现
-- MinIO：活动图片对象存储
+- MinIO：活动图片、公告图片、公告附件和反馈附件对象存储
 - Spring Boot Admin：服务监控
 
 ## 2. 服务职责
@@ -44,6 +45,7 @@ Nginx :80
 - 向下游透传 `X-User-Id`、`X-Username`、`X-User-Role`
 - 为请求补充 `X-Trace-Id`
 - 按 `/user/**`、`/activity/**` 路由到对应服务
+- 按 `/user/**`、`/activity/**`、`/announcement/**`、`/feedback/**` 路由到对应服务
 
 当前白名单接口：
 
@@ -51,6 +53,10 @@ Nginx :80
 - `/user/register`
 - `/activity/list`
 - `/activity/image`
+- `/announcement/home`
+- `/announcement/list`
+- `/announcement/image`
+- `/announcement/attachment`
 
 ### `user-service`
 
@@ -75,7 +81,16 @@ Nginx :80
 - 首页公告列表与公告详情
 - 管理员发布、编辑、下线、删除公告
 - 公告图片上传与读取
-- 公告可关联具体活动详情页
+- 公告附件上传与读取
+- 公告可关联一个或多个活动详情页
+
+### `feedback-service`
+
+- 用户提交意见反馈工单
+- 用户查看自己的反馈列表与详情
+- 用户追加回复、上传附件和关闭反馈
+- 管理员筛选反馈、回复反馈、驳回反馈、关闭反馈和调整优先级
+- 反馈附件上传、访问校验与下载
 
 ### `monitor-service`
 
@@ -97,7 +112,7 @@ Nginx :80
 1. 浏览器访问 Nginx。
 2. Nginx 将 `/api/**` 转发给 `gateway-service`。
 3. 网关校验 JWT，并写入用户请求头。
-4. 网关转发到 `user-service` 或 `activity-service`。
+4. 网关转发到对应业务服务。
 5. 服务返回统一 `Result<T>` 结构。
 
 ### 活动图片链路
@@ -106,6 +121,13 @@ Nginx :80
 2. `activity-service` 将对象写入 MinIO。
 3. 前端通过 `/api/activity/image?objectKey=...` 读取图片。
 4. `activity-service` 负责读取对象流并返回给浏览器。
+
+### 公告与反馈附件链路
+
+1. 管理员通过 `/announcement/admin/attachment` 上传公告附件，用户或管理员通过 `/feedback/attachments` 上传反馈附件。
+2. 对象写入 MinIO，业务表保存对象键、文件名、类型与大小。
+3. 公告附件可通过 `/api/announcement/attachment?objectKey=...` 下载。
+4. 反馈附件可通过 `/api/feedback/attachments?objectKey=...` 下载，下载前会校验当前用户是否为反馈所有者或管理员。
 
 ### MCP OAuth 链路
 
@@ -188,10 +210,37 @@ Nginx :80
   - 已核销总时长
   - 已核销活动明细
 
+### 公告图片与附件
+
+- 图片上传接口：`POST /announcement/admin/image`
+- 附件上传接口：`POST /announcement/admin/attachment`
+- 公告可同时保存：
+  - `imageKey` / `imageKeys`
+  - `activityId` / `activityIds`
+  - `attachments`
+- `activityId` 与 `imageKey` 仍用于兼容旧数据，前端优先使用数组字段。
+
+### 意见反馈附件
+
+- 上传接口：`POST /feedback/attachments`
+- 下载接口：`GET /feedback/attachments?objectKey=...`
+- 支持图片、PDF、Excel、Word、TXT、CSV
+- 单条消息最多绑定 6 个附件
+- 反馈状态包括：
+  - `OPEN`
+  - `REPLIED`
+  - `CLOSED`
+  - `REJECTED`
+- 优先级包括：
+  - `LOW`
+  - `NORMAL`
+  - `HIGH`
+  - `URGENT`
+
 ## 7. 监控与运维
 
 - `monitor-service` 对外端口：`9100`
 - Docker 模式下宿主机映射：`9101`
-- 通过 Nacos discovery 自动加载已注册的 `user-service`、`activity-service`、`announcement-service`、`gateway-service`
+- 通过 Nacos discovery 自动加载已注册的 `user-service`、`activity-service`、`announcement-service`、`feedback-service`、`gateway-service`
 - `mcp-service` 已接入 Spring Boot Admin Client
 - 本机与 Docker 模式均推荐通过前端 Nginx 入口访问监控页面，而不是直接暴露内部端口作为最终入口

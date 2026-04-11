@@ -2,6 +2,7 @@ package org.example.mcp.config;
 
 import org.example.mcp.tool.ActivityMcpTools;
 import org.example.mcp.tool.AnnouncementMcpTools;
+import org.example.mcp.tool.FeedbackMcpTools;
 import org.example.mcp.tool.UserMcpTools;
 import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.ai.tool.method.MethodToolCallbackProvider;
@@ -15,10 +16,11 @@ public class ToolConfig {
     public ToolCallbackProvider toolCallbackProvider(
             ActivityMcpTools activityMcpTools,
             AnnouncementMcpTools announcementMcpTools,
+            FeedbackMcpTools feedbackMcpTools,
             UserMcpTools userMcpTools
     ) {
         return MethodToolCallbackProvider.builder()
-                .toolObjects(activityMcpTools, announcementMcpTools, userMcpTools)
+                .toolObjects(activityMcpTools, announcementMcpTools, feedbackMcpTools, userMcpTools)
                 .build();
     }
 }

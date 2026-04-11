@@ -1,6 +1,6 @@
 ﻿# 校园志愿服务管理平台
 
-基于 Spring Boot 3、Spring Cloud Alibaba、Vue 3、Nginx 与 MySQL 的校园志愿服务管理平台，支持志愿活动发布、报名、签到、时长核销、活动图片管理、个人志愿足迹导出，以及通过独立 `mcp-service` 对外暴露 MCP 能力。
+基于 Spring Boot 3、Spring Cloud Alibaba、Vue 3、Nginx 与 MySQL 的校园志愿服务管理平台，支持志愿活动发布、报名、签到、时长核销、活动图片管理、公告管理、意见反馈工单、个人志愿足迹导出，以及通过独立 `mcp-service` 对外暴露 MCP 能力。
 
 ## 1. 项目概览
 
@@ -9,6 +9,7 @@
 - 用户服务：`user-service`，端口 `8100`
 - 活动服务：`activity-service`，端口 `8200`
 - 公告服务：`announcement-service`，端口 `8300`
+- 意见反馈服务：`feedback-service`，端口 `8400`
 - 监控服务：`monitor-service`，端口 `9100`
 - MCP 服务：`mcp-service`，端口 `9300`
 - 注册中心：Nacos，端口 `8848`
@@ -19,11 +20,12 @@
 当前版本的重点能力：
 
 - 活动支持多图上传、编辑和详情轮播展示
-- 公告支持独立微服务、首页展示、图片上传和关联活动详情页
+- 公告支持独立微服务、首页展示、图片上传、附件上传和多活动关联
+- 意见反馈支持用户提交、追加回复、附件上传、关闭工单，以及管理员回复、驳回、关闭和优先级调整
 - 用户可在“我的志愿足迹”页面取消未开始活动的报名
 - 用户可导出本人已核销志愿时长及对应活动明细 Excel
 - 管理员可进行活动创建、编辑、取消、结项、签到、时长核销
-- 新增独立 `mcp-service`，支持 OAuth 授权码登录与 Streamable HTTP MCP 接入
+- 独立 `mcp-service` 支持 OAuth 授权码登录与 Streamable HTTP MCP 接入，工具覆盖活动、用户、公告和意见反馈场景
 
 ## 2. 仓库结构
 
@@ -32,13 +34,14 @@
 - `services/`：后端 Maven 聚合工程
 - `frontend/`：Vue 3 前端工程
 - `database/init.sql`：数据库初始化与示例数据
+- `database/migrations/`：已有数据库的增量升级脚本
 - `deploy/nginx/cloud-demo.local.conf`：本机 Nginx 配置
 - `docker-compose.yml`：整套容器部署方案
 - `docs/`：分主题文档中心
 - `scripts/mcp-login.ps1`：MCP 手动 token 登录并写入环境变量的辅助脚本
 - `scripts/mcp-print-token.ps1`：MCP 手动 token 获取并打印的辅助脚本
 
-另外，仓库根目录下的 `user-service/`、`activity-service/`、`announcement-service/`、`gateway-service/`、`monitor-service/`、`mcp-service/` 目录当前用于保存运行日志，不是源码目录。
+另外，仓库根目录下的 `user-service/`、`activity-service/`、`announcement-service/`、`feedback-service/`、`gateway-service/`、`monitor-service/`、`mcp-service/` 目录当前用于保存运行日志，不是源码目录。
 
 ## 3. 本机运行摘要
 
@@ -53,6 +56,7 @@ mysql -u root -p < database/init.sql
 - `database/init.sql` 会先执行 `DROP DATABASE IF EXISTS volunteer_platform`
 - 脚本会初始化默认账号、20 条活动数据以及报名记录
 - 种子数据围绕 `2026-03-25` 设计，因此不同日期运行时，活动“招募中/未开始/已结束/进行中”的展示会随当前时间动态变化
+- 已有数据库可按需执行 `database/migrations/20260411_add_announcement.sql` 与 `database/migrations/20260411_add_feedback.sql` 补建新表
 
 ### 3.2 启动基础设施
 
@@ -60,7 +64,7 @@ mysql -u root -p < database/init.sql
 - Nacos
 - MinIO
 
-`activity-service` 默认使用以下 MinIO 配置，本机不改端口时通常无需额外配置：
+`activity-service`、`announcement-service` 和 `feedback-service` 默认使用以下 MinIO 配置，本机不改端口时通常无需额外配置：
 
 ```powershell
 $env:MINIO_ENDPOINT="http://127.0.0.1:9005"
@@ -79,10 +83,11 @@ mvn clean install -DskipTests
 
 1. `UserApplication`
 2. `ActivityApplication`
-3. `GatewayApplication`
-4. `AnnouncementApplication`
-5. `MonitorApplication`
-6. `McpApplication`
+3. `AnnouncementApplication`
+4. `FeedbackApplication`
+5. `GatewayApplication`
+6. `MonitorApplication`
+7. `McpApplication`
 
 ### 3.4 启动前端
 

@@ -37,6 +37,20 @@ public class MinioStorageService {
             IMAGE_WEBP
     );
 
+    private static final Set<String> ALLOWED_ATTACHMENT_TYPES = Set.of(
+            MediaType.APPLICATION_PDF_VALUE,
+            "application/vnd.ms-excel",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "application/msword",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "text/plain",
+            "text/csv"
+    );
+
+    private static final Set<String> ALLOWED_ATTACHMENT_EXTENSIONS = Set.of(
+            ".pdf", ".xls", ".xlsx", ".doc", ".docx", ".txt", ".csv"
+    );
+
     private final MinioProperties properties;
 
     public MinioStorageService(MinioProperties properties) {
@@ -59,7 +73,34 @@ public class MinioStorageService {
             throw new BusinessException("Image size cannot exceed " + properties.getMaxFileSizeMb() + " MB");
         }
 
-        String objectKey = buildObjectKey(file.getOriginalFilename(), contentType);
+        String objectKey = buildObjectKey("announcements", file.getOriginalFilename(), contentType);
+        return uploadObject(file, contentType, objectKey, "announcement image");
+    }
+
+    public String uploadAnnouncementAttachment(MultipartFile file) {
+        ensureConfigured();
+        if (file == null || file.isEmpty()) {
+            throw new BusinessException("Please select an attachment file");
+        }
+
+        String contentType = StringUtils.hasText(file.getContentType())
+                ? file.getContentType()
+                : MediaType.APPLICATION_OCTET_STREAM_VALUE;
+        String extension = resolveExtension(file.getOriginalFilename(), contentType);
+        if (!ALLOWED_ATTACHMENT_TYPES.contains(contentType) && !ALLOWED_ATTACHMENT_EXTENSIONS.contains(extension)) {
+            throw new BusinessException("Only PDF, Excel, Word, TXT and CSV attachments are supported");
+        }
+
+        long maxBytes = properties.getMaxFileSizeMb() * 1024 * 1024;
+        if (file.getSize() > maxBytes) {
+            throw new BusinessException("Attachment size cannot exceed " + properties.getMaxFileSizeMb() + " MB");
+        }
+
+        String objectKey = buildObjectKey("announcement-attachments", file.getOriginalFilename(), contentType);
+        return uploadObject(file, contentType, objectKey, "announcement attachment");
+    }
+
+    private String uploadObject(MultipartFile file, String contentType, String objectKey, String label) {
         MinioClient client = buildClient();
 
         try (InputStream inputStream = file.getInputStream()) {
@@ -72,11 +113,11 @@ public class MinioStorageService {
                             .contentType(contentType)
                             .build()
             );
-            log.info("uploaded announcement image objectKey={} size={} contentType={}",
-                    objectKey, file.getSize(), contentType);
+            log.info("uploaded {} objectKey={} size={} contentType={}",
+                    label, objectKey, file.getSize(), contentType);
             return objectKey;
         } catch (Exception ex) {
-            throw new BusinessException("Failed to upload announcement image: " + ex.getMessage());
+            throw new BusinessException("Failed to upload " + label + ": " + ex.getMessage());
         }
     }
 
@@ -134,6 +175,18 @@ public class MinioStorageService {
         return properties.getPublicBaseUrl() + "/announcement/image?objectKey=" + encoded;
     }
 
+    public String buildAnnouncementAttachmentUrl(String attachmentKey, String fileName) {
+        if (!StringUtils.hasText(attachmentKey)) {
+            return null;
+        }
+        String encodedKey = URLEncoder.encode(attachmentKey, StandardCharsets.UTF_8);
+        String url = properties.getPublicBaseUrl() + "/announcement/attachment?objectKey=" + encodedKey;
+        if (StringUtils.hasText(fileName)) {
+            url += "&fileName=" + URLEncoder.encode(fileName, StandardCharsets.UTF_8);
+        }
+        return url;
+    }
+
     public void deleteObjectQuietly(String objectKey) {
         if (!properties.isConfigured() || !StringUtils.hasText(objectKey)) {
             return;
@@ -180,9 +233,9 @@ public class MinioStorageService {
         }
     }
 
-    private String buildObjectKey(String originalFilename, String contentType) {
+    private String buildObjectKey(String directory, String originalFilename, String contentType) {
         String extension = resolveExtension(originalFilename, contentType);
-        return "announcements/" + UUID.randomUUID().toString().replace("-", "") + extension;
+        return directory + "/" + UUID.randomUUID().toString().replace("-", "") + extension;
     }
 
     private String resolveExtension(String originalFilename, String contentType) {
@@ -196,6 +249,13 @@ public class MinioStorageService {
             case MediaType.IMAGE_PNG_VALUE -> ".png";
             case MediaType.IMAGE_GIF_VALUE -> ".gif";
             case IMAGE_WEBP -> ".webp";
+            case MediaType.APPLICATION_PDF_VALUE -> ".pdf";
+            case "application/vnd.ms-excel" -> ".xls";
+            case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" -> ".xlsx";
+            case "application/msword" -> ".doc";
+            case "application/vnd.openxmlformats-officedocument.wordprocessingml.document" -> ".docx";
+            case "text/plain" -> ".txt";
+            case "text/csv" -> ".csv";
             default -> ".jpg";
         };
     }

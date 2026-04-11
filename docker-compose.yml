@@ -134,6 +134,35 @@ services:
     networks:
       - cloud-demo
 
+  feedback-service:
+    build:
+      context: .
+      dockerfile: services/feedback-service/Dockerfile
+    container_name: cloud-demo-feedback-service
+    restart: unless-stopped
+    depends_on:
+      - mysql
+      - nacos
+      - minio
+    environment:
+      APP_LOG_FILE: /app/logs/debug.log
+      TZ: Asia/Shanghai
+      JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Shanghai
+      SPRING_CLOUD_NACOS_SERVER_ADDR: nacos:8848
+      SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: nacos:8848
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/volunteer_platform?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: 123888
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-http://minio:9000}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-root}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-12345678}
+      MINIO_BUCKET: ${MINIO_BUCKET:-activity-images}
+      MINIO_PUBLIC_BASE_URL: ${MINIO_PUBLIC_BASE_URL:-/api}
+    volumes:
+      - ./feedback-service/logs:/app/logs
+    networks:
+      - cloud-demo
+
   gateway-service:
     build:
       context: .
@@ -145,6 +174,7 @@ services:
       - user-service
       - activity-service
       - announcement-service
+      - feedback-service
     environment:
       APP_LOG_FILE: /app/logs/debug.log
       TZ: Asia/Shanghai
@@ -212,6 +242,7 @@ services:
       - monitor-service
       - mcp-service
       - announcement-service
+      - feedback-service
     ports:
       - "8081:80"
     networks:
