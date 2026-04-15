@@ -1,15 +1,20 @@
 package org.example.service;
 
+import io.github.resilience4j.bulkhead.annotation.Bulkhead;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import org.example.dto.AIGenerateRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,8 +33,20 @@ public class AIService {
     @Value("${ai.api.model:deepseek-chat}")
     private String model;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
 
+    public AIService(RestTemplateBuilder restTemplateBuilder,
+                     @Value("${ai.api.connect-timeout:3s}") Duration connectTimeout,
+                     @Value("${ai.api.read-timeout:10s}") Duration readTimeout) {
+        this.restTemplate = restTemplateBuilder
+                .setConnectTimeout(connectTimeout)
+                .setReadTimeout(readTimeout)
+                .build();
+    }
+
+    @Retry(name = "aiGenerator")
+    @CircuitBreaker(name = "aiGenerator", fallbackMethod = "generateActivityDescriptionFallback")
+    @Bulkhead(name = "aiGenerator", type = Bulkhead.Type.SEMAPHORE)
     public String generateActivityDescription(AIGenerateRequest request) {
         if (apiUrl == null || apiUrl.isEmpty() || apiKey == null || apiKey.isEmpty()) {
             log.warn("ai generation fallback because api configuration is missing category={} location={}",
@@ -81,16 +98,18 @@ public class AIService {
                     return (String) message.get("content");
                 }
             }
-
-            log.warn("ai generation returned empty choices, using fallback category={} location={}",
-                    request.getCategory(), request.getLocation());
-            return generateFallbackDescription(request);
-
-        } catch (Exception e) {
-            log.error("ai generation failed category={} location={} model={}",
-                    request.getCategory(), request.getLocation(), model, e);
-            return generateFallbackDescription(request);
+            throw new IllegalStateException("AI response does not contain usable choices");
+        } catch (RuntimeException ex) {
+            log.warn("ai generation attempt failed category={} location={} model={} error={}",
+                    request.getCategory(), request.getLocation(), model, ex.getMessage());
+            throw ex;
         }
+    }
+
+    private String generateActivityDescriptionFallback(AIGenerateRequest request, Throwable throwable) {
+        log.error("ai generation fallback after resilience category={} location={} model={} error={}",
+                request.getCategory(), request.getLocation(), model, throwable.getMessage(), throwable);
+        return generateFallbackDescription(request);
     }
 
     private String generateFallbackDescription(AIGenerateRequest request) {

@@ -1,0 +1,363 @@
+services:
+  nacos:
+    image: ${NACOS_IMAGE:-nacos/nacos-server:v2.4.2}
+    restart: unless-stopped
+    environment:
+      MODE: standalone
+      PREFER_HOST_MODE: hostname
+      JVM_XMS: 256m
+      JVM_XMX: 256m
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8848/nacos/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 40s
+    networks:
+      stack-internal-net:
+        aliases:
+          - ${NACOS_NAME}
+      shared-net:
+        aliases:
+          - ${NACOS_NAME}
+
+  rabbitmq:
+    image: ${RABBITMQ_IMAGE:-rabbitmq:3.13-management-alpine}
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-guest}
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    networks:
+      stack-internal-net:
+        aliases:
+          - ${RABBITMQ_HOST}
+
+  monitor-service:
+    build:
+      context: .
+      dockerfile: services/monitor-service/Dockerfile
+      args:
+        MAVEN_IMAGE: ${MAVEN_IMAGE:-public.ecr.aws/docker/library/maven:3.9.9-eclipse-temurin-17}
+        RUNTIME_IMAGE: ${JAVA_RUNTIME_IMAGE:-public.ecr.aws/docker/library/eclipse-temurin:17-jre}
+    restart: unless-stopped
+    depends_on:
+      nacos:
+        condition: service_healthy
+    environment:
+      APP_LOG_FILE: /app/logs/debug.log
+      TZ: Asia/Shanghai
+      JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Shanghai
+      STACK_ID: ${STACK_ID}
+      SERVICE_NAME: ${MONITOR_NAME}
+      SPRING_APPLICATION_NAME: ${MONITOR_NAME}
+      NACOS_SERVER_ADDR: ${NACOS_SERVER_ADDR}
+      SPRING_CLOUD_NACOS_SERVER_ADDR: ${NACOS_SERVER_ADDR}
+      SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: ${NACOS_SERVER_ADDR}
+      MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED: true
+    volumes:
+      - ./log/${STACK_ID}/monitor-service:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9100/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 15
+      start_period: 40s
+    networks:
+      stack-internal-net:
+        aliases:
+          - ${MONITOR_NAME}
+      edge-net:
+        aliases:
+          - ${MONITOR_NAME}
+      shared-net:
+        aliases:
+          - ${MONITOR_NAME}
+
+  gateway-service:
+    build:
+      context: .
+      dockerfile: services/gateway-service/Dockerfile
+      args:
+        MAVEN_IMAGE: ${MAVEN_IMAGE:-public.ecr.aws/docker/library/maven:3.9.9-eclipse-temurin-17}
+        RUNTIME_IMAGE: ${JAVA_RUNTIME_IMAGE:-public.ecr.aws/docker/library/eclipse-temurin:17-jre}
+    restart: unless-stopped
+    depends_on:
+      nacos:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+      activity-service:
+        condition: service_healthy
+      announcement-service:
+        condition: service_healthy
+      feedback-service:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      APP_LOG_FILE: /app/logs/debug.log
+      TZ: Asia/Shanghai
+      JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Shanghai
+      STACK_ID: ${STACK_ID}
+      SERVICE_NAME: ${GATEWAY_NAME}
+      SPRING_APPLICATION_NAME: ${GATEWAY_NAME}
+      NACOS_SERVER_ADDR: ${NACOS_SERVER_ADDR}
+      SPRING_CLOUD_NACOS_SERVER_ADDR: ${NACOS_SERVER_ADDR}
+      SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: ${NACOS_SERVER_ADDR}
+      USER_SERVICE_NAME: ${USER_SERVICE_NAME}
+      ACTIVITY_SERVICE_NAME: ${ACTIVITY_SERVICE_NAME}
+      ANNOUNCEMENT_SERVICE_NAME: ${ANNOUNCEMENT_SERVICE_NAME}
+      FEEDBACK_SERVICE_NAME: ${FEEDBACK_SERVICE_NAME}
+      JWT_SECRET: ${JWT_SECRET:-volunteerPlatformSecretKey2024}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
+      MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED: true
+    volumes:
+      - ./log/${STACK_ID}/gateway-service:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9000/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 15
+      start_period: 40s
+    networks:
+      stack-internal-net:
+        aliases:
+          - ${GATEWAY_NAME}
+      edge-net:
+        aliases:
+          - ${GATEWAY_NAME}
+      shared-net:
+        aliases:
+          - ${GATEWAY_NAME}
+
+  user-service:
+    build:
+      context: .
+      dockerfile: services/user-service/Dockerfile
+      args:
+        MAVEN_IMAGE: ${MAVEN_IMAGE:-public.ecr.aws/docker/library/maven:3.9.9-eclipse-temurin-17}
+        RUNTIME_IMAGE: ${JAVA_RUNTIME_IMAGE:-public.ecr.aws/docker/library/eclipse-temurin:17-jre}
+    restart: unless-stopped
+    scale: ${USER_SERVICE_REPLICAS:-2}
+    depends_on:
+      nacos:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      APP_LOG_FILE: /app/logs/debug.log
+      TZ: Asia/Shanghai
+      JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Shanghai
+      STACK_ID: ${STACK_ID}
+      SERVICE_NAME: ${USER_SERVICE_NAME}
+      SPRING_APPLICATION_NAME: ${USER_SERVICE_NAME}
+      NACOS_SERVER_ADDR: ${NACOS_SERVER_ADDR}
+      SPRING_CLOUD_NACOS_SERVER_ADDR: ${NACOS_SERVER_ADDR}
+      SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: ${NACOS_SERVER_ADDR}
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:-jdbc:mysql://mysql:3306/volunteer_platform?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-root}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-123888}
+      JWT_SECRET: ${JWT_SECRET:-volunteerPlatformSecretKey2024}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
+      RABBITMQ_HOST: ${RABBITMQ_HOST}
+      SPRING_RABBITMQ_HOST: ${RABBITMQ_HOST}
+      SPRING_RABBITMQ_PORT: ${SPRING_RABBITMQ_PORT:-5672}
+      SPRING_RABBITMQ_USERNAME: ${SPRING_RABBITMQ_USERNAME:-guest}
+      SPRING_RABBITMQ_PASSWORD: ${SPRING_RABBITMQ_PASSWORD:-guest}
+      MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED: true
+    volumes:
+      - ./log/${STACK_ID}/user-service:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8100/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 15
+      start_period: 40s
+    networks:
+      stack-internal-net:
+        aliases:
+          - ${USER_SERVICE_NAME}
+      shared-net:
+        aliases:
+          - ${USER_SERVICE_NAME}
+
+  activity-service:
+    build:
+      context: .
+      dockerfile: services/activity-service/Dockerfile
+      args:
+        MAVEN_IMAGE: ${MAVEN_IMAGE:-public.ecr.aws/docker/library/maven:3.9.9-eclipse-temurin-17}
+        RUNTIME_IMAGE: ${JAVA_RUNTIME_IMAGE:-public.ecr.aws/docker/library/eclipse-temurin:17-jre}
+    restart: unless-stopped
+    scale: ${ACTIVITY_SERVICE_REPLICAS:-2}
+    depends_on:
+      nacos:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      APP_LOG_FILE: /app/logs/debug.log
+      TZ: Asia/Shanghai
+      JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Shanghai
+      STACK_ID: ${STACK_ID}
+      SERVICE_NAME: ${ACTIVITY_SERVICE_NAME}
+      SPRING_APPLICATION_NAME: ${ACTIVITY_SERVICE_NAME}
+      USER_SERVICE_NAME: ${USER_SERVICE_NAME}
+      NACOS_SERVER_ADDR: ${NACOS_SERVER_ADDR}
+      SPRING_CLOUD_NACOS_SERVER_ADDR: ${NACOS_SERVER_ADDR}
+      SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: ${NACOS_SERVER_ADDR}
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:-jdbc:mysql://mysql:3306/volunteer_platform?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-root}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-123888}
+      SPRING_DATA_REDIS_HOST: ${SPRING_DATA_REDIS_HOST:-redis}
+      SPRING_DATA_REDIS_PORT: ${SPRING_DATA_REDIS_PORT:-6379}
+      RABBITMQ_HOST: ${RABBITMQ_HOST}
+      SPRING_RABBITMQ_HOST: ${RABBITMQ_HOST}
+      SPRING_RABBITMQ_PORT: ${SPRING_RABBITMQ_PORT:-5672}
+      SPRING_RABBITMQ_USERNAME: ${SPRING_RABBITMQ_USERNAME:-guest}
+      SPRING_RABBITMQ_PASSWORD: ${SPRING_RABBITMQ_PASSWORD:-guest}
+      AI_API_KEY: ${DEEPSEEK_API_KEY:-}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-http://minio:9000}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-root}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-12345678}
+      MINIO_BUCKET: ${MINIO_BUCKET:-activity-images}
+      MINIO_PUBLIC_BASE_URL: ${MINIO_PUBLIC_BASE_URL:-/api}
+      MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED: true
+    volumes:
+      - ./log/${STACK_ID}/activity-service:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8200/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 15
+      start_period: 40s
+    networks:
+      stack-internal-net:
+        aliases:
+          - ${ACTIVITY_SERVICE_NAME}
+      shared-net:
+        aliases:
+          - ${ACTIVITY_SERVICE_NAME}
+
+  announcement-service:
+    build:
+      context: .
+      dockerfile: services/announcement-service/Dockerfile
+      args:
+        MAVEN_IMAGE: ${MAVEN_IMAGE:-public.ecr.aws/docker/library/maven:3.9.9-eclipse-temurin-17}
+        RUNTIME_IMAGE: ${JAVA_RUNTIME_IMAGE:-public.ecr.aws/docker/library/eclipse-temurin:17-jre}
+    restart: unless-stopped
+    scale: ${ANNOUNCEMENT_SERVICE_REPLICAS:-2}
+    depends_on:
+      nacos:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      APP_LOG_FILE: /app/logs/debug.log
+      TZ: Asia/Shanghai
+      JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Shanghai
+      STACK_ID: ${STACK_ID}
+      SERVICE_NAME: ${ANNOUNCEMENT_SERVICE_NAME}
+      SPRING_APPLICATION_NAME: ${ANNOUNCEMENT_SERVICE_NAME}
+      NACOS_SERVER_ADDR: ${NACOS_SERVER_ADDR}
+      SPRING_CLOUD_NACOS_SERVER_ADDR: ${NACOS_SERVER_ADDR}
+      SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: ${NACOS_SERVER_ADDR}
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:-jdbc:mysql://mysql:3306/volunteer_platform?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-root}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-123888}
+      RABBITMQ_HOST: ${RABBITMQ_HOST}
+      SPRING_RABBITMQ_HOST: ${RABBITMQ_HOST}
+      SPRING_RABBITMQ_PORT: ${SPRING_RABBITMQ_PORT:-5672}
+      SPRING_RABBITMQ_USERNAME: ${SPRING_RABBITMQ_USERNAME:-guest}
+      SPRING_RABBITMQ_PASSWORD: ${SPRING_RABBITMQ_PASSWORD:-guest}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-http://minio:9000}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-root}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-12345678}
+      MINIO_BUCKET: ${MINIO_BUCKET:-activity-images}
+      MINIO_PUBLIC_BASE_URL: ${MINIO_PUBLIC_BASE_URL:-/api}
+      MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED: true
+    volumes:
+      - ./log/${STACK_ID}/announcement-service:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8300/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 15
+      start_period: 40s
+    networks:
+      stack-internal-net:
+        aliases:
+          - ${ANNOUNCEMENT_SERVICE_NAME}
+      shared-net:
+        aliases:
+          - ${ANNOUNCEMENT_SERVICE_NAME}
+
+  feedback-service:
+    build:
+      context: .
+      dockerfile: services/feedback-service/Dockerfile
+      args:
+        MAVEN_IMAGE: ${MAVEN_IMAGE:-public.ecr.aws/docker/library/maven:3.9.9-eclipse-temurin-17}
+        RUNTIME_IMAGE: ${JAVA_RUNTIME_IMAGE:-public.ecr.aws/docker/library/eclipse-temurin:17-jre}
+    restart: unless-stopped
+    scale: ${FEEDBACK_SERVICE_REPLICAS:-2}
+    depends_on:
+      nacos:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      APP_LOG_FILE: /app/logs/debug.log
+      TZ: Asia/Shanghai
+      JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Shanghai
+      STACK_ID: ${STACK_ID}
+      SERVICE_NAME: ${FEEDBACK_SERVICE_NAME}
+      SPRING_APPLICATION_NAME: ${FEEDBACK_SERVICE_NAME}
+      NACOS_SERVER_ADDR: ${NACOS_SERVER_ADDR}
+      SPRING_CLOUD_NACOS_SERVER_ADDR: ${NACOS_SERVER_ADDR}
+      SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: ${NACOS_SERVER_ADDR}
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:-jdbc:mysql://mysql:3306/volunteer_platform?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-root}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-123888}
+      RABBITMQ_HOST: ${RABBITMQ_HOST}
+      SPRING_RABBITMQ_HOST: ${RABBITMQ_HOST}
+      SPRING_RABBITMQ_PORT: ${SPRING_RABBITMQ_PORT:-5672}
+      SPRING_RABBITMQ_USERNAME: ${SPRING_RABBITMQ_USERNAME:-guest}
+      SPRING_RABBITMQ_PASSWORD: ${SPRING_RABBITMQ_PASSWORD:-guest}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-http://minio:9000}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-root}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-12345678}
+      MINIO_BUCKET: ${MINIO_BUCKET:-activity-images}
+      MINIO_PUBLIC_BASE_URL: ${MINIO_PUBLIC_BASE_URL:-/api}
+      MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED: true
+    volumes:
+      - ./log/${STACK_ID}/feedback-service:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8400/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 15
+      start_period: 40s
+    networks:
+      stack-internal-net:
+        aliases:
+          - ${FEEDBACK_SERVICE_NAME}
+      shared-net:
+        aliases:
+          - ${FEEDBACK_SERVICE_NAME}
+
+networks:
+  stack-internal-net:
+    name: ${STACK_INTERNAL_NET}
+  edge-net:
+    name: ${EDGE_NET}
+  shared-net:
+    external: true
+    name: ${SHARED_NET}

@@ -85,21 +85,35 @@
 
 ## Docker 部署
 
-- [ ] `docker compose config` 可正确解析
+- [ ] `docker compose -f compose.shared.yml config` 可正确解析
+- [ ] `docker compose --env-file deploy/stack-a.env -f compose.stack.yml config` 可正确解析
+- [ ] `docker compose --env-file deploy/stack-b.env -f compose.stack.yml config` 可正确解析
+- [ ] `docker compose -f compose.edge.yml config` 可正确解析
 - [ ] Docker Engine 已启动
-- [ ] `docker compose up -d --build` 可执行
+- [ ] `bash deploy/deploy-all.sh` 或 `powershell -ExecutionPolicy Bypass -File deploy/deploy-all.ps1` 可执行
 - [ ] `http://localhost:8081/` 可访问
-- [ ] `http://localhost:8081/monitor/` 可访问
+- [ ] `http://localhost:8081/monitor/a/` 可访问
+- [ ] `http://localhost:8081/monitor/b/` 可访问
 - [ ] `http://localhost:8081/mcp` 未登录时返回 `401 Unauthorized`
-- [ ] `http://localhost:9001/actuator/health` 返回正常
-- [ ] `http://localhost:9101/actuator/health` 返回正常
-- [ ] `http://localhost:8849/nacos/` 可访问
+- [ ] `docker compose -p shared -f compose.shared.yml ps` 显示 shared 组件正常
+- [ ] `docker compose -p stack-a --env-file deploy/stack-a.env -f compose.stack.yml ps` 显示 A 栈正常
+- [ ] `docker compose -p stack-b --env-file deploy/stack-b.env -f compose.stack.yml ps` 显示 B 栈正常
+- [ ] `docker compose -p edge -f compose.edge.yml ps` 显示 edge 正常
+- [ ] `http://localhost:9090` 可访问
+- [ ] `http://localhost:3000` 可访问
+- [ ] Grafana 数据源 `Prometheus`、`Loki`、`Tempo` 已加载
+- [ ] Prometheus targets 可看到 A/B 栈副本级实例
+- [ ] Loki 已存在 `instance` 标签值（例如 `stack-a-user-service-2`）
+- [ ] `log/shared/mcp-service/debug.log` 已落盘
+- [ ] `log/a/gateway-service/debug.log` 已落盘
+- [ ] `log/b/gateway-service/debug.log` 已落盘
+- [ ] `log/edge/edge-nginx/access.log` 与 `error.log` 已落盘
 - [ ] Docker 页面和接口返回的中文未出现乱码
 
 ## Jenkins
 
 - [ ] Jenkins 可成功执行 `mvn -B test`
-- [ ] Jenkins 可成功执行 `docker compose up -d --build`
+- [ ] Jenkins 可成功执行 `bash deploy/deploy-all.sh` 或等价的分层 compose 命令
 - [ ] JUnit 报告可被 `**/target/surefire-reports/*.xml` 正确收集
 
 ## 快速排查命令

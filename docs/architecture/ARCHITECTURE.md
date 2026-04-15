@@ -2,7 +2,10 @@
 
 ## 1. 总体结构
 
-项目采用前后端分离 + 微服务架构。
+项目采用前后端分离 + 微服务架构，同时支持：
+
+- 本机 Nginx 单套开发模式
+- Docker A/B 双栈 + shared + edge 统一入口模式
 
 ### 本机 Nginx 模式
 
@@ -28,13 +31,48 @@ Nginx :80
                   └─ feedback-service
 ```
 
+### Docker A/B 双栈模式
+
+```text
+Browser
+  │
+  ▼
+edge-nginx :8081
+  ├─ /                  -> frontend/dist
+  ├─ /api/**            -> gateway-a 或 gateway-b
+  ├─ /monitor/a/**      -> monitor-a
+  ├─ /monitor/b/**      -> monitor-b
+  ├─ /.well-known/**    -> mcp-service
+  ├─ /authorize         -> mcp-service
+  ├─ /token             -> mcp-service
+  ├─ /register          -> mcp-service
+  └─ /mcp**             -> mcp-service
+
+shared:
+  mysql, redis, minio, mcp-service,
+  otel-collector, prometheus, grafana,
+  loki, promtail, tempo
+
+stack-a:
+  nacos-a, rabbitmq-a, monitor-a, gateway-a,
+  user-service-a(x2), activity-service-a(x2),
+  announcement-service-a(x2), feedback-service-a(x2)
+
+stack-b:
+  nacos-b, rabbitmq-b, monitor-b, gateway-b,
+  user-service-b(x2), activity-service-b(x2),
+  announcement-service-b(x2), feedback-service-b(x2)
+```
+
 ### 依赖基础设施
 
 - MySQL：业务数据
 - Redis：活动库存与报名并发控制
 - Nacos：服务注册与发现
+- RabbitMQ：异步事件总线与最终一致性链路
 - MinIO：活动图片、公告图片、公告附件和反馈附件对象存储
 - Spring Boot Admin：服务监控
+- Prometheus / Grafana / Loki / Tempo / OTel Collector：指标、日志、链路与统一观测入口
 
 ## 2. 服务职责
 
@@ -138,6 +176,16 @@ Nginx :80
 5. 客户端通过 `/token` 交换 access token。
 6. 后续访问 `/mcp` 时，`mcp-service` 直接复用该业务 JWT 调用网关接口。
 
+### 异步事件链路
+
+1. 业务服务在本地事务中写入 `event_outbox`。
+2. outbox publisher 将事件投递到 RabbitMQ。
+3. 下游服务消费事件，并写入 `mq_consume_record` 做幂等控制。
+4. 当前已落地的链路包括：
+   - `activity-service -> announcement-service`
+   - `feedback-service -> user-service`
+   - `activity-service -> user-service`（志愿时长异步更新）
+
 ## 4. 认证设计
 
 ### Web 业务接口
@@ -240,7 +288,34 @@ Nginx :80
 ## 7. 监控与运维
 
 - `monitor-service` 对外端口：`9100`
-- Docker 模式下宿主机映射：`9101`
+- Docker A/B 模式下统一通过 `edge-nginx` 暴露：
+  - `http://localhost:8081/monitor/a/`
+  - `http://localhost:8081/monitor/b/`
 - 通过 Nacos discovery 自动加载已注册的 `user-service`、`activity-service`、`announcement-service`、`feedback-service`、`gateway-service`
 - `mcp-service` 已接入 Spring Boot Admin Client
-- 本机与 Docker 模式均推荐通过前端 Nginx 入口访问监控页面，而不是直接暴露内部端口作为最终入口
+- shared 层已部署基础可观测栈：
+  - `Prometheus`
+  - `Grafana`
+  - `Loki`
+  - `Promtail`
+  - `Tempo`
+  - `OpenTelemetry Collector`
+- Prometheus 当前已按 Docker 容器发现抓取实例级指标
+- Loki 当前已支持按 Docker 容器实例查询日志
+- Grafana 已统一接入 Prometheus、Loki、Tempo 三类数据源
+- Docker 运行期日志统一挂载到仓库根目录 `log/`：
+  - `log/shared/`
+  - `log/a/`
+  - `log/b/`
+  - `log/edge/`
+- 访问入口：
+  - `http://localhost:3000`（Grafana）
+  - `http://localhost:9090`（Prometheus）
+- 本机与 Docker 模式均推荐通过统一入口访问监控页面，而不是直接暴露内部端口作为最终入口
+
+## 8. 稳定性治理
+
+- `Resilience4j` 已接入剩余同步高风险链路：
+  - `mcp-service -> gateway`
+  - `activity-service -> 外部 AI API`
+- 当前启用了重试、熔断和隔离等机制，用于降低下游抖动对业务入口的影响

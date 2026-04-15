@@ -1,0 +1,223 @@
+services:
+  mysql:
+    image: ${MYSQL_IMAGE:-public.ecr.aws/docker/library/mysql:8.0}
+    restart: unless-stopped
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-123888}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-volunteer_platform}
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./database/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p${MYSQL_ROOT_PASSWORD:-123888} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks:
+      - shared-a-net
+      - shared-b-net
+
+  redis:
+    image: ${REDIS_IMAGE:-public.ecr.aws/docker/library/redis:7-alpine}
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    networks:
+      - shared-a-net
+      - shared-b-net
+
+  minio:
+    image: ${MINIO_IMAGE:-quay.io/minio/minio:latest}
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-root}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-12345678}
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    networks:
+      - shared-a-net
+      - shared-b-net
+
+  otel-collector:
+    image: ${OTEL_COLLECTOR_IMAGE:-otel/opentelemetry-collector-contrib:0.108.0}
+    restart: unless-stopped
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes:
+      - ./deploy/observability/otel-collector-config.yml:/etc/otelcol-contrib/config.yaml:ro
+    healthcheck:
+      test: ["CMD", "/otelcol-contrib", "--version"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    networks:
+      shared-a-net:
+        aliases:
+          - otel-collector
+      shared-b-net:
+        aliases:
+          - otel-collector
+
+  tempo:
+    image: ${TEMPO_IMAGE:-grafana/tempo:2.6.1}
+    restart: unless-stopped
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./deploy/observability/tempo.yml:/etc/tempo.yaml:ro
+      - tempo-data:/var/tempo
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3200/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    networks:
+      - shared-a-net
+      - shared-b-net
+
+  loki:
+    image: ${LOKI_IMAGE:-grafana/loki:3.1.1}
+    restart: unless-stopped
+    command: ["-config.file=/etc/loki/local-config.yaml"]
+    volumes:
+      - ./deploy/observability/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki-data:/loki
+    networks:
+      - shared-a-net
+      - shared-b-net
+
+  promtail:
+    image: ${PROMTAIL_IMAGE:-grafana/promtail:3.1.1}
+    restart: unless-stopped
+    user: "0:0"
+    command: ["-config.file=/etc/promtail/config.yml"]
+    volumes:
+      - ./deploy/observability/promtail-config.yml:/etc/promtail/config.yml:ro
+      - ./log:/var/log/cloud-demo:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - promtail-positions:/var/lib/promtail
+    depends_on:
+      loki:
+        condition: service_started
+    networks:
+      - shared-a-net
+      - shared-b-net
+
+  prometheus:
+    image: ${PROMETHEUS_IMAGE:-prom/prometheus:v2.54.1}
+    restart: unless-stopped
+    user: "0:0"
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./deploy/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      otel-collector:
+        condition: service_started
+    networks:
+      - shared-a-net
+      - shared-b-net
+
+  grafana:
+    image: ${GRAFANA_IMAGE:-grafana/grafana:11.2.0}
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./deploy/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      prometheus:
+        condition: service_started
+      loki:
+        condition: service_started
+      tempo:
+        condition: service_started
+    networks:
+      - shared-a-net
+      - shared-b-net
+
+  mcp-service:
+    build:
+      context: .
+      dockerfile: services/mcp-service/Dockerfile
+      args:
+        MAVEN_IMAGE: ${MAVEN_IMAGE:-public.ecr.aws/docker/library/maven:3.9.9-eclipse-temurin-17}
+        RUNTIME_IMAGE: ${JAVA_RUNTIME_IMAGE:-public.ecr.aws/docker/library/eclipse-temurin:17-jre}
+    restart: unless-stopped
+    environment:
+      APP_LOG_FILE: /app/logs/debug.log
+      TZ: Asia/Shanghai
+      JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Shanghai
+      STACK_ID: shared
+      SERVICE_NAME: mcp-service
+      MONITOR_SERVICE_URL: ${MCP_MONITOR_SERVICE_URL:-http://monitor-a:9100}
+      MCP_SERVICE_BASE_URL: ${MCP_SERVICE_BASE_URL:-http://mcp-service:9300}
+      CLOUD_DEMO_API_BASE_URL: ${MCP_CLOUD_DEMO_API_BASE_URL:-http://gateway-a:9000}
+      MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED: true
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    volumes:
+      - ./log/shared/mcp-service:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9300/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 15
+      start_period: 40s
+    networks:
+      shared-a-net:
+        aliases:
+          - mcp-service
+      shared-b-net:
+        aliases:
+          - mcp-service
+      edge-shared-net:
+        aliases:
+          - mcp-service
+
+networks:
+  shared-a-net:
+    name: shared-a-net
+  shared-b-net:
+    name: shared-b-net
+  edge-shared-net:
+    name: edge-shared-net
+
+volumes:
+  mysql-data:
+  minio-data:
+  tempo-data:
+  loki-data:
+  prometheus-data:
+  grafana-data:
+  promtail-positions:

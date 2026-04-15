@@ -195,9 +195,9 @@ curl -X POST http://127.0.0.1:9000/user/login \
 - 检查 `/.well-known/oauth-authorization-server`
 - 检查 Nginx 是否已加载最新 `/authorize`、`/token`、`/register` 与 `/mcp` 代理规则
 
-## 11. Docker 快速启动
+## 11. Docker 快速启动（A/B 双栈）
 
-如果希望整套环境通过 Docker 运行：
+如果希望整套环境通过 Docker 运行，当前推荐使用分层 compose：
 
 ```powershell
 Copy-Item .env.example .env
@@ -206,25 +206,47 @@ Copy-Item .env.example .env
 ```
 
 ```bash
-docker compose up -d --build
+bash deploy/deploy-all.sh
 ```
 
-说明：`docker-compose.yml` 会从宿主机环境变量或仓库根目录 `.env` 读取 `DEEPSEEK_API_KEY`，再传给容器内的 `activity-service`。
+```powershell
+powershell -ExecutionPolicy Bypass -File deploy/deploy-all.ps1
+```
+
+如果希望按阶段启动，也可以分别执行：
+
+- `deploy/up-shared.*`
+- `deploy/up-stack-a.*`
+- `deploy/up-stack-b.*`
+- `deploy/up-edge.*`
+
+说明：当前推荐部署入口为 `compose.shared.yml`、`compose.stack.yml`、`compose.edge.yml`。根目录 `docker-compose.yml` 为历史单架构兼容文件，不再作为主入口。
 
 访问地址：
 
 - 前台：`http://localhost:8081/`
-- 监控后台：`http://localhost:8081/monitor/`
+- 监控后台 A：`http://localhost:8081/monitor/a/`
+- 监控后台 B：`http://localhost:8081/monitor/b/`
 - MCP：`http://localhost:8081/mcp`
-- 网关：`http://localhost:9001`
-- 监控：`http://localhost:9101`
-- Nacos：`http://localhost:8849/nacos`
-- MinIO API：`http://localhost:9007`
-- MinIO Console：`http://localhost:9008`
+- Grafana：`http://localhost:3000`
+- Prometheus：`http://localhost:9090`
+
+运行期日志：
+
+- shared：`log/shared/`
+- stack-a：`log/a/`
+- stack-b：`log/b/`
+- edge：`log/edge/`
+
+说明：
+
+- Docker A/B 模式默认只暴露 `edge-nginx` 的 `8081`，内部服务端口不直接映射到宿主机。
+- Grafana 默认账号密码：`admin / admin`
+- Prometheus 已按容器实例发现副本，Loki 也已支持按实例查询日志
 
 如果 Docker 页面中文异常，优先执行：
 
 ```bash
-docker compose down -v
-docker compose up -d --build
+bash deploy/down-all.sh
+bash deploy/deploy-all.sh
 ```

@@ -1,5 +1,7 @@
 package org.example.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
@@ -18,9 +20,13 @@ import org.example.dto.ActivityCreateRequest;
 import org.example.dto.ActivityRegisteredCount;
 import org.example.entity.Activity;
 import org.example.entity.Registration;
-import org.example.feign.UserServiceClient;
 import org.example.mapper.ActivityMapper;
+import org.example.mapper.EventOutboxMapper;
 import org.example.mapper.RegistrationMapper;
+import org.example.messaging.IdempotencyHelper;
+import org.example.messaging.MessagingConstants;
+import org.example.messaging.outbox.EventOutbox;
+import org.example.messaging.outbox.OutboxStatus;
 import org.example.vo.ActivityVO;
 import org.example.vo.RegistrationVO;
 import org.slf4j.Logger;
@@ -40,6 +46,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -54,20 +61,26 @@ public class ActivityService {
 
     private final ActivityMapper activityMapper;
     private final RegistrationMapper registrationMapper;
+    private final EventOutboxMapper eventOutboxMapper;
     private final StringRedisTemplate redisTemplate;
-    private final UserServiceClient userServiceClient;
     private final MinioStorageService minioStorageService;
+    private final IdempotencyHelper idempotencyHelper;
+    private final ObjectMapper objectMapper;
 
     public ActivityService(ActivityMapper activityMapper,
                            RegistrationMapper registrationMapper,
+                           EventOutboxMapper eventOutboxMapper,
                            StringRedisTemplate redisTemplate,
-                           UserServiceClient userServiceClient,
-                           MinioStorageService minioStorageService) {
+                           MinioStorageService minioStorageService,
+                           IdempotencyHelper idempotencyHelper,
+                           ObjectMapper objectMapper) {
         this.activityMapper = activityMapper;
         this.registrationMapper = registrationMapper;
+        this.eventOutboxMapper = eventOutboxMapper;
         this.redisTemplate = redisTemplate;
-        this.userServiceClient = userServiceClient;
         this.minioStorageService = minioStorageService;
+        this.idempotencyHelper = idempotencyHelper;
+        this.objectMapper = objectMapper;
     }
 
     public IPage<ActivityVO> listActivities(Integer page, Integer size, String status, String category,
@@ -159,11 +172,39 @@ public class ActivityService {
         activity.setStatus("RECRUITING");
 
         activityMapper.insert(activity);
+        eventOutboxMapper.insert(buildActivityCreatedOutbox(activity, creatorId));
 
         String stockKey = RedisKeyConstant.getActivityStockKey(activity.getId());
         redisTemplate.opsForValue().set(stockKey, String.valueOf(activity.getMaxParticipants()), 7, TimeUnit.DAYS);
         log.info("created activity activityId={} creatorId={} maxParticipants={}",
                 activity.getId(), creatorId, activity.getMaxParticipants());
+    }
+
+    private EventOutbox buildActivityCreatedOutbox(Activity activity, Long creatorId) {
+        EventOutbox outbox = new EventOutbox();
+        outbox.setMessageId(idempotencyHelper.newMessageId());
+        outbox.setEventType(MessagingConstants.ROUTING_ACTIVITY_CREATED);
+        outbox.setAggregateType("activity");
+        outbox.setAggregateId(String.valueOf(activity.getId()));
+        outbox.setPayloadJson(buildActivityCreatedPayload(activity, creatorId));
+        outbox.setStatus(OutboxStatus.PENDING);
+        outbox.setRetryCount(0);
+        outbox.setNextRetryTime(LocalDateTime.now());
+        outbox.setCreatedAt(LocalDateTime.now());
+        return outbox;
+    }
+
+    private String buildActivityCreatedPayload(Activity activity, Long creatorId) {
+        LinkedHashMap<String, Object> payload = new LinkedHashMap<>();
+        payload.put("activityId", activity.getId());
+        payload.put("title", activity.getTitle());
+        payload.put("category", activity.getCategory());
+        payload.put("creatorId", creatorId);
+        payload.put("startTime", activity.getStartTime() == null ? null : activity.getStartTime().toString());
+        payload.put("endTime", activity.getEndTime() == null ? null : activity.getEndTime().toString());
+        payload.put("maxParticipants", activity.getMaxParticipants());
+        payload.put("stackId", System.getenv().getOrDefault("STACK_ID", "single"));
+        return payload.toString();
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -496,9 +537,42 @@ public class ActivityService {
         registration.setConfirmTime(LocalDateTime.now());
         registrationMapper.updateById(registration);
 
-        userServiceClient.updateVolunteerHours(registration.getUserId(), activity.getVolunteerHours());
-        log.info("confirmed volunteer hours registrationId={} activityId={} userId={} hours={}",
-                registrationId, registration.getActivityId(), registration.getUserId(), activity.getVolunteerHours());
+        eventOutboxMapper.insert(buildUserUpdatedOutbox(registration, activity));
+        log.info("confirmed volunteer hours registrationId={} activityId={} userId={} hours={} eventType={}",
+                registrationId,
+                registration.getActivityId(),
+                registration.getUserId(),
+                activity.getVolunteerHours(),
+                MessagingConstants.ROUTING_USER_UPDATED);
+    }
+
+    private EventOutbox buildUserUpdatedOutbox(Registration registration, Activity activity) {
+        EventOutbox outbox = new EventOutbox();
+        outbox.setMessageId(idempotencyHelper.newMessageId());
+        outbox.setEventType(MessagingConstants.ROUTING_USER_UPDATED);
+        outbox.setAggregateType("user");
+        outbox.setAggregateId(String.valueOf(registration.getUserId()));
+        outbox.setPayloadJson(buildUserUpdatedPayload(registration, activity));
+        outbox.setStatus(OutboxStatus.PENDING);
+        outbox.setRetryCount(0);
+        outbox.setNextRetryTime(LocalDateTime.now());
+        outbox.setCreatedAt(LocalDateTime.now());
+        return outbox;
+    }
+
+    private String buildUserUpdatedPayload(Registration registration, Activity activity) {
+        LinkedHashMap<String, Object> payload = new LinkedHashMap<>();
+        payload.put("userId", registration.getUserId());
+        payload.put("registrationId", registration.getId());
+        payload.put("activityId", registration.getActivityId());
+        payload.put("hours", activity.getVolunteerHours());
+        payload.put("confirmedAt", registration.getConfirmTime() == null ? null : registration.getConfirmTime().toString());
+        payload.put("stackId", System.getenv().getOrDefault("STACK_ID", "single"));
+        try {
+            return objectMapper.writeValueAsString(payload);
+        } catch (JsonProcessingException ex) {
+            throw new IllegalStateException("failed to serialize user.updated payload", ex);
+        }
     }
 
     @Transactional(rollbackFor = Exception.class)

@@ -27,21 +27,28 @@ OAuth 相关端点：
 
 ## 2. 启动方式
 
-### Docker Compose
+### Docker A/B 双栈
 
 ```powershell
-docker compose up -d --build
+powershell -ExecutionPolicy Bypass -File deploy/up-shared.ps1
+powershell -ExecutionPolicy Bypass -File deploy/up-stack-a.ps1
+powershell -ExecutionPolicy Bypass -File deploy/up-edge.ps1
 ```
 
 MCP 地址：
 
 - `http://localhost:8081/mcp`
 
-只重建 MCP 相关组件时可使用：
+如果已经整套环境启动完毕，只重建 `mcp-service` 时可使用：
 
 ```powershell
-docker compose up -d --build mcp-service frontend
+docker compose -p shared -f compose.shared.yml up -d --build mcp-service
 ```
+
+说明：
+
+- `mcp-service` 部署在 shared 层，但其默认上游业务网关指向 A 栈，因此至少需要 `shared + stack-a + edge`
+- 运行期日志位于 `log/shared/mcp-service/debug.log`
 
 ### 本机 Java + 本机 Nginx
 
@@ -92,6 +99,15 @@ curl.exe -i "http://localhost:8081/mcp"
 - 响应头包含 `WWW-Authenticate`
 
 这说明 MCP 保护与 OAuth 引导已生效。
+
+### Streamable HTTP 调试提醒
+
+手动调试 `/mcp` 时建议注意两点：
+
+1. `Accept` 建议同时带上 `text/event-stream, application/json`
+2. 某些工具失败不会返回顶层 JSON-RPC `error`，而是返回 `HTTP 200 + result.isError=true`
+
+也就是说，客户端或调试脚本除了检查 HTTP 状态码，还需要检查返回体中的 `result.isError`。
 
 ### 辅助登录接口
 
@@ -376,7 +392,7 @@ curl.exe "http://localhost:8081/.well-known/oauth-authorization-server"
 若返回里缺少 `:8081`，说明前端 Nginx 还没加载最新配置，可重建：
 
 ```powershell
-docker compose up -d --build frontend
+docker compose -p edge -f compose.edge.yml up -d --build edge-nginx
 ```
 
 ### `/mcp` 返回 401

@@ -10,9 +10,14 @@ import org.example.dto.FeedbackMessageRequest;
 import org.example.entity.Feedback;
 import org.example.entity.FeedbackMessage;
 import org.example.entity.FeedbackMessageAttachment;
+import org.example.mapper.EventOutboxMapper;
 import org.example.mapper.FeedbackMapper;
 import org.example.mapper.FeedbackMessageAttachmentMapper;
 import org.example.mapper.FeedbackMessageMapper;
+import org.example.messaging.IdempotencyHelper;
+import org.example.messaging.MessagingConstants;
+import org.example.messaging.outbox.EventOutbox;
+import org.example.messaging.outbox.OutboxStatus;
 import org.example.vo.FeedbackAttachmentVO;
 import org.example.vo.FeedbackDetailVO;
 import org.example.vo.FeedbackMessageVO;
@@ -28,6 +33,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -55,16 +61,22 @@ public class FeedbackService {
     private final FeedbackMapper feedbackMapper;
     private final FeedbackMessageMapper messageMapper;
     private final FeedbackMessageAttachmentMapper attachmentMapper;
+    private final EventOutboxMapper eventOutboxMapper;
     private final MinioStorageService minioStorageService;
+    private final IdempotencyHelper idempotencyHelper;
 
     public FeedbackService(FeedbackMapper feedbackMapper,
                            FeedbackMessageMapper messageMapper,
                            FeedbackMessageAttachmentMapper attachmentMapper,
-                           MinioStorageService minioStorageService) {
+                           EventOutboxMapper eventOutboxMapper,
+                           MinioStorageService minioStorageService,
+                           IdempotencyHelper idempotencyHelper) {
         this.feedbackMapper = feedbackMapper;
         this.messageMapper = messageMapper;
         this.attachmentMapper = attachmentMapper;
+        this.eventOutboxMapper = eventOutboxMapper;
         this.minioStorageService = minioStorageService;
+        this.idempotencyHelper = idempotencyHelper;
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -83,9 +95,36 @@ public class FeedbackService {
         feedbackMapper.insert(feedback);
 
         FeedbackMessage message = createMessage(feedback, userId, ROLE_VOLUNTEER, request.getContent(), request.getAttachments());
+        eventOutboxMapper.insert(buildFeedbackCreatedOutbox(feedback, message, userId));
         log.info("created feedback feedbackId={} userId={} category={} messageId={}",
                 feedback.getId(), userId, feedback.getCategory(), message.getId());
         return getFeedbackDetail(feedback.getId(), userId, ROLE_VOLUNTEER);
+    }
+
+    private EventOutbox buildFeedbackCreatedOutbox(Feedback feedback, FeedbackMessage message, Long userId) {
+        EventOutbox outbox = new EventOutbox();
+        outbox.setMessageId(idempotencyHelper.newMessageId());
+        outbox.setEventType(MessagingConstants.ROUTING_FEEDBACK_CREATED);
+        outbox.setAggregateType("feedback");
+        outbox.setAggregateId(String.valueOf(feedback.getId()));
+        outbox.setPayloadJson(buildFeedbackCreatedPayload(feedback, message, userId));
+        outbox.setStatus(OutboxStatus.PENDING);
+        outbox.setRetryCount(0);
+        outbox.setNextRetryTime(LocalDateTime.now());
+        outbox.setCreatedAt(LocalDateTime.now());
+        return outbox;
+    }
+
+    private String buildFeedbackCreatedPayload(Feedback feedback, FeedbackMessage message, Long userId) {
+        LinkedHashMap<String, Object> payload = new LinkedHashMap<>();
+        payload.put("feedbackId", feedback.getId());
+        payload.put("messageId", message.getId());
+        payload.put("userId", userId);
+        payload.put("title", feedback.getTitle());
+        payload.put("category", feedback.getCategory());
+        payload.put("status", feedback.getStatus());
+        payload.put("stackId", System.getenv().getOrDefault("STACK_ID", "single"));
+        return payload.toString();
     }
 
     public IPage<FeedbackVO> listMyFeedback(Integer page, Integer size, String status, Long userId) {

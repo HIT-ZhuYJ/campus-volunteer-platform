@@ -78,9 +78,9 @@
 
 ## 日志
 
-- 默认本机日志文件：`../../feedback-service/logs/debug.log`
+- 默认本机日志文件：按运行方式决定，可通过 `APP_LOG_FILE` 覆盖
 - Docker 日志文件：`/app/logs/debug.log`
-- Compose 挂载目录：`./feedback-service/logs`
+- Docker A/B 双栈挂载目录：`log/a/feedback-service/` 或 `log/b/feedback-service/`
 
 ## 数据库迁移
 

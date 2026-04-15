@@ -1,338 +1,337 @@
-﻿# 部署说明
+# 部署说明（A/B 双栈 + 共享基础组件 + Edge 统一入口）
 
-本文档聚焦当前仓库已经对齐的三种方式：
+本文档对应当前仓库的**最终部署骨架**：
 
-1. 本机 Windows + Nginx
-2. Docker Compose
-3. 本机 Jenkins 调用 Docker Compose 自动发布
+- 共享组件：`mysql`、`redis`、`minio`、`mcp-service`
+- 共享观测组件：`otel-collector`、`prometheus`、`grafana`、`loki`、`promtail`、`tempo`
+- A 栈：`gateway-a`、`user-service-a`(2)、`activity-service-a`(2)、`announcement-service-a`(2)、`feedback-service-a`(2)、`nacos-a`、`rabbitmq-a`、`monitor-a`
+- B 栈：`gateway-b`、`user-service-b`(2)、`activity-service-b`(2)、`announcement-service-b`(2)、`feedback-service-b`(2)、`nacos-b`、`rabbitmq-b`、`monitor-b`
+- 边缘入口：`edge-nginx`
 
-## 1. 目标拓扑
+> 说明：`mysql` 当前仍为共享实例；前端静态资源由 `edge-nginx` 镜像构建阶段统一打包并托管，不再保留栈内 frontend 服务。
+
+---
+
+## 1. 架构图
 
 ```text
 Browser
-  └─ Nginx :80
-      ├─ /                -> frontend/dist
-      ├─ /api/            -> gateway-service:9000
-      ├─ /monitor/        -> monitor-service:9100
-      ├─ /.well-known/*   -> mcp-service:9300
-      ├─ /authorize       -> mcp-service:9300
-      ├─ /token           -> mcp-service:9300
-      ├─ /register        -> mcp-service:9300
-      └─ /mcp*            -> mcp-service:9300
+  -> edge-nginx (:8081)
+      |- /                  -> frontend/dist (SPA)
+      |- /api/*             -> gateway-a 或 gateway-b (A/B 分流)
+      |- /monitor/a/*       -> monitor-a
+      |- /monitor/b/*       -> monitor-b
+      |- /mcp* + OAuth 路径 -> mcp-service
+
+shared:
+  mysql, redis, minio, mcp-service
+
+stack-a:
+  nacos-a, rabbitmq-a, monitor-a, gateway-a,
+  user-service-a(x2), activity-service-a(x2),
+  announcement-service-a(x2), feedback-service-a(x2)
+
+stack-b:
+  nacos-b, rabbitmq-b, monitor-b, gateway-b,
+  user-service-b(x2), activity-service-b(x2),
+  announcement-service-b(x2), feedback-service-b(x2)
 ```
 
-## 2. 服务端口
+---
 
-| 组件 | 本机端口 | Docker 宿主机端口 |
-|------|------|------|
-| MySQL | 3306 | 容器内部 |
-| Redis | 6379 | 容器内部 |
-| Nacos | 8848 | 8849 |
-| user-service | 8100 | 容器内部 |
-| activity-service | 8200 | 容器内部 |
-| announcement-service | 8300 | 容器内部 |
-| feedback-service | 8400 | 容器内部 |
-| gateway-service | 9000 | 9001 |
-| monitor-service | 9100 | 9101 |
-| mcp-service | 9300 | 由前端 Nginx 统一代理 |
-| 前端 Nginx | 80 | 8081 |
-| MinIO API | 9005 | 9007 |
-| MinIO Console | 9006 | 9008 |
+## 2. Compose 文件说明
 
-## 3. 本机 Windows + Nginx
+- `compose.shared.yml`
+  - 包含：`mysql`、`redis`、`minio`、`mcp-service` 与 shared 层可观测组件
+- `compose.stack.yml`
+  - 仅包含：`nacos`、`rabbitmq`、`monitor-service`、`gateway-service`、`user-service`、`activity-service`、`announcement-service`、`feedback-service`
+  - 同一份文件通过 `--env-file` + `-p` 区分 A/B 栈
+  - `user-service`、`activity-service`、`announcement-service`、`feedback-service` 的默认副本数由 `deploy/stack-a.env` / `deploy/stack-b.env` 中的 `*_SERVICE_REPLICAS` 控制，普通 `docker compose up -d --build` 不会再悄悄缩回 1
+- `compose.edge.yml`
+  - 仅包含：`edge-nginx`
+- `docker-compose.yml`
+  - 历史单架构 compose，保留作兼容参考，不是当前推荐入口
 
-### 3.1 初始化依赖
+---
+
+## 3. 日志目录与挂载
+
+当前 Docker 运行期日志统一挂载到仓库根目录 `log/`：
+
+- `log/shared/mcp-service/`：shared 层 MCP 日志
+- `log/a/{gateway-service,user-service,activity-service,announcement-service,feedback-service,monitor-service}/`：A 栈日志
+- `log/b/{gateway-service,user-service,activity-service,announcement-service,feedback-service,monitor-service}/`：B 栈日志
+- `log/edge/edge-nginx/`：edge nginx 访问与错误日志
+
+说明：
+
+1. 业务服务容器内仍写入 `/app/logs/debug.log`
+2. edge-nginx 写入 `/var/log/nginx/access.log` 与 `/var/log/nginx/error.log`
+3. 宿主机排障时优先查看 `log/`，而不是进入源码目录寻找日志
+4. Loki/Promtail 当前以 Docker 容器发现为主，`edge` 保留文件日志兜底
+
+---
+
+## 4. 可观测栈
+
+shared 层当前包含：
+
+- `prometheus`
+- `grafana`
+- `loki`
+- `promtail`
+- `tempo`
+- `otel-collector`
+
+宿主机访问地址：
+
+- Grafana：`http://localhost:3000`
+- Prometheus：`http://localhost:9090`
+
+Grafana 默认账号：`admin / admin`
+
+说明：
+
+1. Prometheus 已改为按 Docker 容器实例抓取 `/actuator/prometheus`
+2. Loki 已通过 Promtail 按容器实例采集业务服务日志
+3. Grafana 已预置 Prometheus、Loki、Tempo 数据源
+4. 详细使用方式见 [../observability/OBSERVABILITY.md](../observability/OBSERVABILITY.md)
+
+---
+
+## 5. 网络隔离
+
+当前部署使用以下网络：
+
+- `edge-a-net`：`edge-nginx <-> gateway-a、monitor-a`
+- `edge-b-net`：`edge-nginx <-> gateway-b、monitor-b`
+- `edge-shared-net`：`edge-nginx <-> mcp-service`
+- `shared-a-net`：A 栈服务与 `mysql/redis/minio/mcp-service`
+- `shared-b-net`：B 栈服务与 `mysql/redis/minio/mcp-service`
+
+栈内还使用独立内部网络：
+
+- `stack-a-internal-net`
+- `stack-b-internal-net`
+
+通过网络与服务命名双重隔离，A/B 默认互不可见。
+
+---
+
+## 6. 启动命令
+
+### 6.1 shared
+
+Linux/macOS:
 
 ```bash
-mysql -u root -p < database/init.sql
-redis-server
+bash deploy/up-shared.sh
 ```
 
-Nacos：
-
-```bash
-cd nacos/bin
-startup.cmd -m standalone
-```
-
-MinIO 可使用本机默认参数启动，详见 [快速开始](../setup/QUICKSTART.md)。
-
-### 3.2 编译并启动后端
-
-```bash
-mvn clean install -DskipTests
-```
-
-启动：
-
-- `UserApplication`
-- `ActivityApplication`
-- `AnnouncementApplication`
-- `FeedbackApplication`
-- `GatewayApplication`
-- `MonitorApplication`
-- `McpApplication`
-
-### 3.3 构建前端
-
-```bash
-cd frontend
-npm install
-npm run build
-```
-
-### 3.4 配置 Nginx
-
-仓库已提供本机配置片段：
-
-- [deploy/nginx/cloud-demo.local.conf](../../deploy/nginx/cloud-demo.local.conf)
-
-当前配置核心行为：
-
-- `root` 指向 `D:/clouddemo/cloud-demo/frontend/dist`
-- `/api/` 转发到 `127.0.0.1:9000`
-- `/monitor/` 转发到 `127.0.0.1:9100`
-- `/.well-known/*`、`/authorize`、`/token`、`/register`、`/mcp*` 转发到 `127.0.0.1:9300`
-
-### 3.5 启动或重载 Nginx
+Windows PowerShell:
 
 ```powershell
-cd D:\nginx-1.28.3
-.\nginx.exe -t
-.\nginx.exe
+powershell -ExecutionPolicy Bypass -File deploy/up-shared.ps1
 ```
 
-重载：
+### 6.2 stack-a
+
+Linux/macOS:
+
+```bash
+bash deploy/up-stack-a.sh
+```
+
+Windows PowerShell:
 
 ```powershell
-.\nginx.exe -s reload
+powershell -ExecutionPolicy Bypass -File deploy/up-stack-a.ps1
 ```
 
-### 3.6 本机验证
+### 6.3 stack-b
 
-- 前台：`http://localhost/`
-- 监控后台：`http://localhost/monitor/`
-- MCP：`http://localhost/mcp`
-
-## 4. Docker Compose
-
-仓库已提供完整 Compose 方案，包含：
-
-- MySQL
-- Redis
-- Nacos
-- MinIO
-- `user-service`
-- `activity-service`
-- `announcement-service`
-- `feedback-service`
-- `gateway-service`
-- `monitor-service`
-- `mcp-service`
-- 前端 Nginx 容器
-
-启动命令：
+Linux/macOS:
 
 ```bash
-docker compose up -d --build
+bash deploy/up-stack-b.sh
 ```
 
-停止命令：
+Windows PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File deploy/up-stack-b.ps1
+```
+
+### 6.4 edge
+
+Linux/macOS:
 
 ```bash
-docker compose down
+bash deploy/up-edge.sh
 ```
 
-访问地址：
+Windows PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File deploy/up-edge.ps1
+```
+
+---
+
+## 7. 一键部署 / 一键关闭
+
+一键部署（顺序：shared -> stack-a -> stack-b -> edge）：
+
+```bash
+bash deploy/deploy-all.sh
+```
+
+```powershell
+powershell -ExecutionPolicy Bypass -File deploy/deploy-all.ps1
+```
+
+一键关闭：
+
+```bash
+bash deploy/down-all.sh
+```
+
+```powershell
+powershell -ExecutionPolicy Bypass -File deploy/down-all.ps1
+```
+
+---
+
+## 8. 扩容命令
+
+当前默认副本数来自：
+
+- `deploy/stack-a.env`
+- `deploy/stack-b.env`
+
+默认值：
+
+- `USER_SERVICE_REPLICAS=2`
+- `ACTIVITY_SERVICE_REPLICAS=2`
+- `ANNOUNCEMENT_SERVICE_REPLICAS=2`
+- `FEEDBACK_SERVICE_REPLICAS=2`
+
+对 A 栈扩容示例：先修改 `deploy/stack-a.env`：
+
+```env
+USER_SERVICE_REPLICAS=3
+ACTIVITY_SERVICE_REPLICAS=3
+ANNOUNCEMENT_SERVICE_REPLICAS=3
+FEEDBACK_SERVICE_REPLICAS=3
+```
+
+然后执行：
+
+```bash
+bash deploy/up-stack-a.sh
+```
+
+对 B 栈扩容示例：先修改 `deploy/stack-b.env` 后再执行：
+
+```bash
+bash deploy/up-stack-b.sh
+```
+
+---
+
+## 9. 验证命令
+
+容器状态：
+
+```bash
+docker compose -p shared -f compose.shared.yml ps
+docker compose -p stack-a --env-file deploy/stack-a.env -f compose.stack.yml ps
+docker compose -p stack-b --env-file deploy/stack-b.env -f compose.stack.yml ps
+docker compose -p edge -f compose.edge.yml ps
+```
+
+访问验证：
 
 - 前台：`http://localhost:8081/`
-- 监控后台：`http://localhost:8081/monitor/`
+- 监控 A：`http://localhost:8081/monitor/a/`
+- 监控 B：`http://localhost:8081/monitor/b/`
 - MCP：`http://localhost:8081/mcp`
-- 网关：`http://localhost:9001`
-- 监控：`http://localhost:9101`
-- Nacos：`http://localhost:8849/nacos`
-- MinIO API：`http://localhost:9007`
-- MinIO Console：`http://localhost:9008`
+- Grafana：`http://localhost:3000`
+- Prometheus：`http://localhost:9090`
 
-### 4.1 环境变量覆盖
+说明：当前 Docker A/B 模式默认只暴露 `edge-nginx` 的 `8081`，内部网关、监控、Nacos、MinIO 等端口不再直接映射到宿主机。
 
-可在仓库根目录参考 `.env.example` 创建 `.env`：
-
-- `MYSQL_IMAGE`
-- `REDIS_IMAGE`
-- `NACOS_IMAGE`
-- `MINIO_IMAGE`
-- `MAVEN_IMAGE`
-- `JAVA_RUNTIME_IMAGE`
-- `NODE_IMAGE`
-- `NGINX_IMAGE`
-- `DEEPSEEK_API_KEY`
-- `MINIO_ENDPOINT`
-- `MINIO_ACCESS_KEY`
-- `MINIO_SECRET_KEY`
-- `MINIO_BUCKET`
-- `MINIO_PUBLIC_BASE_URL`
-- `CLOUD_DEMO_API_BASE_URL`
-
-注意：
-
-- 镜像变量用于适配不同网络环境，默认优先使用公共 ECR 中的 Docker Library 镜像；如果部署机器只能访问内网镜像仓库，可在 `.env` 中改这些变量，不需要改 Dockerfile 或 `docker-compose.yml`
-- `docker-compose.yml` 中的 `AI_API_KEY: ${DEEPSEEK_API_KEY:-}` 会在启动 Compose 时从宿主机环境变量或仓库根目录 `.env` 文件读取 `DEEPSEEK_API_KEY`
-- 推荐把 DeepSeek 密钥写入本机 `.env` 或当前终端环境变量，不要写入 `docker-compose.yml`
-- 如果没有设置 `DEEPSEEK_API_KEY`，`activity-service` 会收到空的 `AI_API_KEY`，AI 文案生成功能将使用本地兜底文案
-
-Docker 模式下的默认约定：
-
-- `activity-service` 默认连接 `http://minio:9000`
-- `announcement-service` 默认连接 `http://minio:9000`
-- `feedback-service` 默认连接 `http://minio:9000`
-- `MINIO_PUBLIC_BASE_URL` 默认为 `/api`
-- `mcp-service` 默认回调 `http://gateway-service:9000`
-
-### 4.2 日志挂载
-
-Compose 当前会将容器日志挂载到仓库根目录：
-
-- `./user-service/logs`
-- `./activity-service/logs`
-- `./announcement-service/logs`
-- `./feedback-service/logs`
-- `./gateway-service/logs`
-- `./mcp-service/logs`
-- `./monitor-service/logs`
-
-这几处目录是运行产物目录，不是源码目录。
-
-### 4.3 已有 Docker 数据库升级
-
-如果 Docker MySQL 已经初始化过，`database/init.sql` 不会因为文件更新而再次执行。新增公告服务和意见反馈服务后，旧的 `mysql-data` 卷需要手动补建相关表：
+网关 A/B 连通性（容器内）：
 
 ```bash
-docker compose exec -T mysql mysql --default-character-set=utf8mb4 -uroot -p123888 volunteer_platform < database/migrations/20260411_add_announcement.sql
-docker compose exec -T mysql mysql --default-character-set=utf8mb4 -uroot -p123888 volunteer_platform < database/migrations/20260411_add_feedback.sql
+docker compose -p edge -f compose.edge.yml exec edge-nginx sh -lc "wget -qO- http://gateway-a:9000/actuator/health"
+docker compose -p edge -f compose.edge.yml exec edge-nginx sh -lc "wget -qO- http://gateway-b:9000/actuator/health"
 ```
 
-执行后可以验证：
+数据库迁移（旧数据卷场景）：
 
 ```bash
-docker compose exec mysql mysql -uroot -p123888 -e "SHOW TABLES LIKE 'vol_announcement';" volunteer_platform
-docker compose exec mysql mysql -uroot -p123888 -e "SHOW TABLES LIKE 'feedback%';" volunteer_platform
+docker compose -p shared -f compose.shared.yml exec -T mysql \
+  mysql --default-character-set=utf8mb4 -uroot -p123888 volunteer_platform \
+  < database/migrations/20260415_add_messaging_outbox.sql
 ```
 
-### 4.4 常见维护命令
+---
 
-重建代理相关服务：
+## 10. 排障命令
+
+查看日志：
 
 ```bash
-docker compose up -d --build frontend monitor-service mcp-service announcement-service feedback-service
+docker compose -p stack-a --env-file deploy/stack-a.env -f compose.stack.yml logs -f gateway-service
+docker compose -p stack-b --env-file deploy/stack-b.env -f compose.stack.yml logs -f gateway-service
+docker compose -p shared -f compose.shared.yml logs -f mcp-service
+docker compose -p edge -f compose.edge.yml logs -f edge-nginx
 ```
 
-如果只重建意见反馈相关服务：
+查看宿主机落盘日志：
 
 ```bash
-docker compose up -d --build feedback-service gateway-service frontend mcp-service
+ls log/shared/mcp-service
+ls log/a/gateway-service
+ls log/b/gateway-service
+ls log/edge/edge-nginx
 ```
 
-查看容器：
+查看 Prometheus targets：
 
 ```bash
-docker compose ps
+curl http://127.0.0.1:9090/api/v1/targets
 ```
 
-彻底重建数据库卷：
+查看 Loki 实例标签：
 
 ```bash
-docker compose down -v
-docker compose up -d --build
+docker run --rm --network shared-a-net curlimages/curl:8.10.1 -sS "http://loki:3100/loki/api/v1/label/instance/values"
 ```
 
-### 4.5 Docker 中文乱码排查
-
-如果 Docker 页面或接口中的中文已经出现乱码，通常是旧 MySQL 数据卷中保存了错误编码的数据。建议执行：
+查看网络：
 
 ```bash
-docker compose down -v
-docker compose up -d --build
+docker network ls | grep -E "edge-|shared-|stack-"
 ```
 
-## 5. 单独构建镜像
-
-如果不通过 Compose，也可以在仓库根目录单独构建：
+检查 outbox / 幂等记录：
 
 ```bash
-docker build -f services/user-service/Dockerfile -t cloud-demo/user-service:latest .
-docker build -f services/activity-service/Dockerfile -t cloud-demo/activity-service:latest .
-docker build -f services/announcement-service/Dockerfile -t cloud-demo/announcement-service:latest .
-docker build -f services/feedback-service/Dockerfile -t cloud-demo/feedback-service:latest .
-docker build -f services/gateway-service/Dockerfile -t cloud-demo/gateway-service:latest .
-docker build -f services/monitor-service/Dockerfile -t cloud-demo/monitor-service:latest .
-docker build -f services/mcp-service/Dockerfile -t cloud-demo/mcp-service:latest .
-docker build -f frontend/Dockerfile -t cloud-demo/frontend:latest .
+docker compose -p shared -f compose.shared.yml exec mysql \
+  mysql -uroot -p123888 -e "SELECT status, COUNT(*) c FROM volunteer_platform.event_outbox GROUP BY status;"
+
+docker compose -p shared -f compose.shared.yml exec mysql \
+  mysql -uroot -p123888 -e "SELECT consumer_name, COUNT(*) c FROM volunteer_platform.mq_consume_record GROUP BY consumer_name;"
 ```
 
-## 6. Jenkins 自动发布
+---
 
-如果 Jenkins 与 Docker Desktop 都在本机 Windows 上，推荐在自由风格任务中使用：
+## 11. 关键约束回顾
 
-```bat
-cd /d D:\clouddemo\cloud-demo
-mvn -B test
-docker compose up -d --build
-docker compose ps
-```
-
-如果你希望先停掉旧容器：
-
-```bat
-cd /d D:\clouddemo\cloud-demo
-mvn -B test
-docker compose down
-docker compose up -d --build
-docker compose ps
-```
-
-测试报告路径：
-
-```text
-**/target/surefire-reports/*.xml
-```
-
-## 7. 监控与 MCP 补充说明
-
-### 监控后台
-
-`monitor-service` 已启用：
-
-- `server.address=0.0.0.0`
-- `server.forward-headers-strategy=framework`
-- Nacos discovery 自动发现已注册的 `user-service`、`activity-service`、`announcement-service`、`feedback-service`、`gateway-service`
-
-因此推荐通过：
-
-- `http://localhost/monitor/`
-- `http://localhost:8081/monitor/`
-
-访问监控页面。
-
-### MCP
-
-`mcp-service` 已启用：
-
-- `server.forward-headers-strategy=framework`
-- Spring Boot Admin Client 自动注册
-- Streamable HTTP MCP 端点 `/mcp`
-
-OAuth 相关元数据与登录页面同样建议经过 Nginx 暴露。
-
-## 8. 排查命令
-
-```powershell
-netstat -ano | findstr :80
-netstat -ano | findstr :9000
-netstat -ano | findstr :9100
-netstat -ano | findstr :9300
-curl http://127.0.0.1/
-curl "http://127.0.0.1:9000/activity/list?page=1&size=10"
-curl http://127.0.0.1:9100/actuator/health
-curl http://127.0.0.1:9300/actuator/health
-```
+- 同步调用：OpenFeign + Spring Cloud LoadBalancer（服务直连，不绕 gateway）
+- 异步解耦：RabbitMQ（不把所有调用都改成 MQ）
+- A 栈仅连接 `nacos-a` / `rabbitmq-a`
+- B 栈仅连接 `nacos-b` / `rabbitmq-b`
+- 可扩副本服务不设置 `container_name`

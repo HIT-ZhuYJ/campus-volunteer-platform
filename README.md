@@ -26,22 +26,27 @@
 - 用户可导出本人已核销志愿时长及对应活动明细 Excel
 - 管理员可进行活动创建、编辑、取消、结项、签到、时长核销
 - 独立 `mcp-service` 支持 OAuth 授权码登录与 Streamable HTTP MCP 接入，工具覆盖活动、用户、公告和意见反馈场景
+- 剩余同步高风险链路已接入 Resilience4j（重试、熔断、隔离）
+- 已接入完整基础可观测栈：Prometheus、Grafana、Loki、Promtail、Tempo、OpenTelemetry Collector
+- Prometheus 与 Loki 已支持按容器实例观察 A/B 栈副本
 
 ## 2. 仓库结构
 
-源码与文档主要分布如下：
+源码、部署文件与运行日志当前主要分布如下：
 
 - `services/`：后端 Maven 聚合工程
 - `frontend/`：Vue 3 前端工程
 - `database/init.sql`：数据库初始化与示例数据
 - `database/migrations/`：已有数据库的增量升级脚本
-- `deploy/nginx/cloud-demo.local.conf`：本机 Nginx 配置
-- `docker-compose.yml`：整套容器部署方案
+- `deploy/`：A/B 双栈部署脚本、环境变量文件、edge nginx 构建文件、本机 Nginx 配置
+- `compose.shared.yml`：shared 层（`mysql`、`redis`、`minio`、`mcp-service` 以及 Prometheus / Grafana / Loki / Tempo / OTel / Promtail 等观测组件）
+- `compose.stack.yml`：A/B 栈通用 compose（通过 `--env-file` 区分 stack-a / stack-b）
+- `compose.edge.yml`：统一入口 `edge-nginx`
+- `docker-compose.yml`：历史单架构 compose，保留作兼容参考，不是当前推荐部署入口
+- `log/`：Docker 运行期日志目录（`shared/`、`a/`、`b/`、`edge/`）
 - `docs/`：分主题文档中心
 - `scripts/mcp-login.ps1`：MCP 手动 token 登录并写入环境变量的辅助脚本
 - `scripts/mcp-print-token.ps1`：MCP 手动 token 获取并打印的辅助脚本
-
-另外，仓库根目录下的 `user-service/`、`activity-service/`、`announcement-service/`、`feedback-service/`、`gateway-service/`、`monitor-service/`、`mcp-service/` 目录当前用于保存运行日志，不是源码目录。
 
 ## 3. 本机运行摘要
 
@@ -123,24 +128,40 @@ Nginx 路由约定：
 - `/monitor/` -> `http://127.0.0.1:9100/`
 - `/.well-known/*`、`/authorize`、`/token`、`/register`、`/mcp*` -> `http://127.0.0.1:9300`
 
-### 4.2 Docker Compose 模式
+### 4.2 Docker A/B 双栈模式
 
-启动命令：
+推荐启动命令：
 
 ```bash
-docker compose up -d --build
+bash deploy/deploy-all.sh
 ```
+
+```powershell
+powershell -ExecutionPolicy Bypass -File deploy/deploy-all.ps1
+```
+
+如果只需要按阶段启动，可分别执行：
+
+- `deploy/up-shared.*`
+- `deploy/up-stack-a.*`
+- `deploy/up-stack-b.*`
+- `deploy/up-edge.*`
 
 默认访问地址：
 
 - 前台：`http://localhost:8081/`
-- 监控后台：`http://localhost:8081/monitor/`
+- 监控后台 A：`http://localhost:8081/monitor/a/`
+- 监控后台 B：`http://localhost:8081/monitor/b/`
 - MCP：`http://localhost:8081/mcp`
-- 网关直连：`http://localhost:9001`
-- 监控直连：`http://localhost:9101`
-- Nacos：`http://localhost:8849/nacos`
-- MinIO API：`http://localhost:9007`
-- MinIO 控制台：`http://localhost:9008`
+- Grafana：`http://localhost:3000`
+- Prometheus：`http://localhost:9090`
+
+说明：
+
+- Docker A/B 模式默认只暴露 `edge-nginx` 的 `8081` 入口，不再直接对宿主机暴露网关、监控、Nacos、MinIO 等内部端口
+- 容器运行期日志统一挂载到仓库根目录 `log/`
+- A/B 栈中 `user-service`、`activity-service`、`announcement-service`、`feedback-service` 的默认副本数已声明在 `compose.stack.yml` + `deploy/stack-a.env` / `deploy/stack-b.env`，普通重建不会再缩回单实例
+- Grafana 默认账号密码：`admin / admin`
 
 ## 5. MCP 接入摘要
 
@@ -186,7 +207,9 @@ codex mcp login cloud-demo
 - [架构说明](docs/architecture/ARCHITECTURE.md)
 - [API 测试](docs/testing/API_TEST.md)
 - [MCP 连接说明](docs/mcp/MCP_CONNECTION.md)
+- [可观测栈说明](docs/observability/OBSERVABILITY.md)
 - [目录结构](docs/overview/DIRECTORY_STRUCTURE.md)
+- [技术说明](docs/overview/TECHNOLOGY_STACK.md)
 - [项目交付摘要](docs/overview/PROJECT_SUMMARY.md)
 - [验收清单](docs/setup/CHECKLIST.md)
 - [前端快速启动](docs/frontend/QUICKSTART.md)

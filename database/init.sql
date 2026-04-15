@@ -125,7 +125,36 @@ CREATE TABLE vol_registration (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='报名流水表';
 
 -- ==============================================================================
--- 5. 活动统计视图（供 BI / 报表使用，应用服务层不直接查询此视图）
+-- 5. 事件外箱与消费幂等
+-- ==============================================================================
+CREATE TABLE event_outbox (
+    id              BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT 'Outbox ID',
+    message_id      VARCHAR(64)  NOT NULL COMMENT '业务消息ID',
+    event_type      VARCHAR(100) NOT NULL COMMENT '事件类型',
+    aggregate_type  VARCHAR(100) NOT NULL COMMENT '聚合类型',
+    aggregate_id    VARCHAR(100) NOT NULL COMMENT '聚合ID',
+    payload_json    LONGTEXT     NOT NULL COMMENT '事件负载JSON',
+    status          VARCHAR(20)  NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING/SENT/FAILED',
+    retry_count     INT          NOT NULL DEFAULT 0 COMMENT '重试次数',
+    next_retry_time DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '下次重试时间',
+    created_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    sent_at         DATETIME     NULL,
+    UNIQUE KEY uk_message_id (message_id),
+    KEY idx_status_next_retry (status, next_retry_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='事务外箱事件表';
+
+CREATE TABLE mq_consume_record (
+    id            BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '记录ID',
+    message_id    VARCHAR(64)  NOT NULL COMMENT '消息ID',
+    consumer_name VARCHAR(120) NOT NULL COMMENT '消费者名称',
+    status        VARCHAR(20)  NOT NULL DEFAULT 'CONSUMED' COMMENT '消费状态',
+    consumed_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_message_consumer (message_id, consumer_name),
+    KEY idx_consumer_time (consumer_name, consumed_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='MQ消费幂等记录';
+
+-- ==============================================================================
+-- 6. 活动统计视图（供 BI / 报表使用，应用服务层不直接查询此视图）
 -- ==============================================================================
 CREATE VIEW v_activity_statistics AS
 SELECT
@@ -147,7 +176,7 @@ GROUP BY a.id, a.title, a.category, a.status, a.max_participants,
          a.current_participants, a.volunteer_hours, a.start_time, a.end_time;
 
 -- ==============================================================================
--- 6. 测试数据 — 用户（1 管理员 + 10 志愿者）
+-- 7. 测试数据 — 用户（1 管理员 + 10 志愿者）
 --    密码均为 password123（此处已使用 BCrypt 哈希存储；同一明文每行哈希不同属正常现象；生产可配合密码策略）
 -- ==============================================================================
 INSERT INTO sys_user (username, password, real_name, student_no, phone, email, role, total_volunteer_hours) VALUES
@@ -164,7 +193,7 @@ INSERT INTO sys_user (username, password, real_name, student_no, phone, email, r
 ('student10', '$2a$10$vtweHP2zt1bs2nTKmYnEJ.RSIeGxrutpWqsaj/coxakFdDi2s4H72', '林小红',   '2022104', '13800138010', 'linxh@university.edu',    'VOLUNTEER',  0.00);
 
 -- ==============================================================================
--- 7. 测试数据 — 志愿活动（20 条，覆盖所有状态与时间场景）
+-- 8. 测试数据 — 志愿活动（20 条，覆盖所有状态与时间场景）
 --    基准日期 2026-03-25
 --    活动1-7：招募中（registration_start <= 今日 <= registration_deadline）
 --    活动8-10：招募未开始（registration_start > 今日）

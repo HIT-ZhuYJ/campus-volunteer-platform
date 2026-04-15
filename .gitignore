@@ -35,6 +35,7 @@ out/
 # Log file
 *.log
 logs/
+log/
 
 # Package Files
 *.jar
@@ -66,3 +67,5 @@ dump.rdb
 # Node modules (if frontend included)
 node_modules/
 dist/
+
+.opencode/

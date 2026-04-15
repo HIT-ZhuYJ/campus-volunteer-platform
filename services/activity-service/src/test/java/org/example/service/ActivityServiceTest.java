@@ -1,13 +1,17 @@
 package org.example.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.example.dto.ActivityCreateRequest;
 import org.example.entity.Activity;
 import org.example.entity.Registration;
-import org.example.feign.UserServiceClient;
 import org.example.mapper.ActivityMapper;
+import org.example.mapper.EventOutboxMapper;
 import org.example.mapper.RegistrationMapper;
+import org.example.messaging.IdempotencyHelper;
+import org.example.messaging.MessagingConstants;
+import org.example.messaging.outbox.EventOutbox;
 import org.example.vo.RegistrationVO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -43,16 +47,19 @@ class ActivityServiceTest {
     private RegistrationMapper registrationMapper;
 
     @Mock
+    private EventOutboxMapper eventOutboxMapper;
+
+    @Mock
     private StringRedisTemplate redisTemplate;
 
     @Mock
     private ValueOperations<String, String> valueOperations;
 
     @Mock
-    private UserServiceClient userServiceClient;
+    private MinioStorageService minioStorageService;
 
     @Mock
-    private MinioStorageService minioStorageService;
+    private IdempotencyHelper idempotencyHelper;
 
     private ActivityService activityService;
 
@@ -61,15 +68,19 @@ class ActivityServiceTest {
         activityService = new ActivityService(
                 activityMapper,
                 registrationMapper,
+                eventOutboxMapper,
                 redisTemplate,
-                userServiceClient,
-                minioStorageService
+                minioStorageService,
+                idempotencyHelper,
+                new ObjectMapper()
         );
+
     }
 
     @Test
     void createActivityShouldNormalizeAndStoreImageKeys() {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(idempotencyHelper.newMessageId()).thenReturn("test-message-id");
 
         ActivityCreateRequest request = new ActivityCreateRequest();
         LocalDateTime now = LocalDateTime.now().withNano(0);
@@ -101,6 +112,7 @@ class ActivityServiceTest {
         assertEquals(0, savedActivity.getCurrentParticipants());
         assertEquals(7L, savedActivity.getCreatorId());
         verify(valueOperations).set("activity:stock:88", "30", 7, TimeUnit.DAYS);
+        verify(eventOutboxMapper).insert(any(EventOutbox.class));
     }
 
     @Test
@@ -183,5 +195,38 @@ class ActivityServiceTest {
         assertThrows(org.example.common.exception.BusinessException.class,
                 () -> activityService.cancelMyRegistration(9L, 5L));
         verify(registrationMapper, never()).updateById(any(Registration.class));
+    }
+
+    @Test
+    void confirmHoursShouldWriteUserUpdatedOutboxInsteadOfCallingUserServiceSynchronously() {
+        Registration registration = new Registration();
+        registration.setId(73L);
+        registration.setActivityId(9L);
+        registration.setUserId(5L);
+        registration.setCheckInStatus(1);
+        registration.setHoursConfirmed(0);
+
+        Activity activity = new Activity();
+        activity.setId(9L);
+        activity.setStatus("COMPLETED");
+        activity.setVolunteerHours(new BigDecimal("2.5"));
+        activity.setEndTime(LocalDateTime.now().minusHours(1));
+
+        when(registrationMapper.selectById(73L)).thenReturn(registration);
+        when(activityMapper.selectById(9L)).thenReturn(activity);
+        when(idempotencyHelper.newMessageId()).thenReturn("msg-user-updated-1");
+
+        activityService.confirmHours(73L);
+
+        assertEquals(1, registration.getHoursConfirmed());
+        assertNotNull(registration.getConfirmTime());
+        verify(registrationMapper).updateById(registration);
+
+        ArgumentCaptor<EventOutbox> outboxCaptor = ArgumentCaptor.forClass(EventOutbox.class);
+        verify(eventOutboxMapper).insert(outboxCaptor.capture());
+        EventOutbox outbox = outboxCaptor.getValue();
+        assertEquals(MessagingConstants.ROUTING_USER_UPDATED, outbox.getEventType());
+        assertEquals("user", outbox.getAggregateType());
+        assertEquals("5", outbox.getAggregateId());
     }
 }

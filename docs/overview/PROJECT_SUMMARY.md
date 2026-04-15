@@ -10,8 +10,11 @@
 - `mcp-service` 支持通过 `/mcp` 对外提供 MCP 能力
 - `announcement-service` 支持首页公告、公告图片、公告附件和关联活动跳转
 - `feedback-service` 支持意见反馈工单、消息回复、附件和管理员处理
-- Docker Compose 可一键启动 MySQL、Redis、Nacos、MinIO、前端与全部后端服务
-- 本机 Jenkins 可先执行 `mvn -B test` 再执行 `docker compose up -d --build`
+- Docker A/B 双栈部署已完成，可按 `shared -> stack-a -> stack-b -> edge` 分层启动
+- 运行期日志已统一挂载到仓库根目录 `log/`
+- 已接入基础可观测栈（Prometheus / Grafana / Loki / Tempo / OTel Collector）
+- Prometheus 与 Loki 已支持按容器实例观察 A/B 栈副本
+- 剩余同步高风险链路已接入 Resilience4j
 
 ## 已交付模块
 
@@ -27,8 +30,10 @@
 | `services/mcp-service` | 独立 MCP Server，封装用户、活动、公告与意见反馈相关工具 |
 | `frontend` | Vue 3 前端页面与后台管理界面 |
 | `database/init.sql` | 数据库结构、默认账号、活动与报名示例数据 |
-| `deploy/nginx` | 本机与容器代理配置 |
-| `docker-compose.yml` | 一键容器部署入口 |
+| `deploy/` | 本机 Nginx、edge nginx、A/B 栈环境文件与启动脚本 |
+| `deploy/observability/` | Prometheus、Promtail、Tempo、Loki、Grafana、OTel Collector 配置 |
+| `compose.shared.yml` / `compose.stack.yml` / `compose.edge.yml` | 当前推荐的 Docker A/B 双栈部署入口 |
+| `log/` | Docker 运行期日志归档目录 |
 | `scripts/mcp-login.ps1` | MCP 手动 token 登录并写入环境变量的辅助脚本 |
 | `scripts/mcp-print-token.ps1` | MCP 手动 token 获取并打印的辅助脚本 |
 
@@ -44,11 +49,13 @@
 ### Docker 模式
 
 - 前台：`http://localhost:8081/`
-- 监控后台：`http://localhost:8081/monitor/`
+- 监控后台 A：`http://localhost:8081/monitor/a/`
+- 监控后台 B：`http://localhost:8081/monitor/b/`
 - MCP：`http://localhost:8081/mcp`
-- 网关直连：`http://localhost:9001`
-- 监控直连：`http://localhost:9101`
-- Nacos：`http://localhost:8849/nacos`
+- Grafana：`http://localhost:3000`
+- Prometheus：`http://localhost:9090`
+
+说明：Docker A/B 模式默认只暴露 `edge-nginx` 的 `8081`，网关、监控、Nacos、MinIO 等内部端口不再直接映射到宿主机。
 
 ## 最近对齐的能力
 
@@ -60,6 +67,9 @@
 - `activity/list` 支持 `status`、`category`、`recruitmentPhase` 筛选
 - `mcp-service` 支持 OAuth 授权码登录
 - MCP 工具已覆盖报名、资料、导出、活动管理、公告管理、反馈工单、签到和批量核销场景
+- `activity-service -> user-service` 志愿时长更新已改为 RabbitMQ 异步链路
+- Prometheus 已支持按容器实例抓取 A/B 双副本指标
+- Loki 已支持按容器实例查询日志
 
 ## 示例数据说明
 
@@ -74,8 +84,14 @@
 
 - `services/common/src/test/java/org/example/common/util/JwtUtilTest.java`
 - `services/user-service/src/test/java/org/example/service/UserServiceTest.java`
+- `services/user-service/src/test/java/org/example/messaging/UserUpdatedConsumerTest.java`
 - `services/activity-service/src/test/java/org/example/service/ActivityScheduleValidatorTest.java`
 - `services/activity-service/src/test/java/org/example/service/ActivityServiceTest.java`
+
+此外还已接入：
+
+- `Testcontainers`（`user-service` 测试依赖）
+- 基于真实 MySQL / RabbitMQ 的集成测试能力
 
 ## 建议阅读顺序
 
