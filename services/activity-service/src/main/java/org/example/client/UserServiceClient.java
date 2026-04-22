@@ -40,8 +40,8 @@ public class UserServiceClient {
         this.userServiceName = userServiceName;
     }
 
-    @Retry(name = "userServiceClient")
-    @CircuitBreaker(name = "userServiceClient", fallbackMethod = "listUserSummariesByIdsFallback")
+    @Retry(name = "userServiceClient", fallbackMethod = "listUserSummariesByIdsFallback")
+    @CircuitBreaker(name = "userServiceClient")
     @RateLimiter(name = "userServiceClient", fallbackMethod = "listUserSummariesByIdsFallback")
     @Bulkhead(name = "userServiceClient", type = Bulkhead.Type.SEMAPHORE)
     public Map<Long, UserSummary> listUserSummariesByIds(List<Long> userIds) {

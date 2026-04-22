@@ -34,8 +34,8 @@ public class CloudDemoGatewayClient {
         this.properties = properties;
     }
 
-    @Retry(name = "gatewayClient")
-    @CircuitBreaker(name = "gatewayClient", fallbackMethod = "fallbackGet")
+    @Retry(name = "gatewayClient", fallbackMethod = "fallbackGet")
+    @CircuitBreaker(name = "gatewayClient")
     @Bulkhead(name = "gatewayClient", type = Bulkhead.Type.SEMAPHORE)
     public JsonNode get(String path, MultiValueMap<String, String> queryParams, String bearerToken) {
         URI uri = UriComponentsBuilder
@@ -48,8 +48,8 @@ public class CloudDemoGatewayClient {
         return exchange(uri, HttpMethod.GET, null, bearerToken);
     }
 
-    @Retry(name = "gatewayClient")
-    @CircuitBreaker(name = "gatewayClient", fallbackMethod = "fallbackPost")
+    @Retry(name = "gatewayClient", fallbackMethod = "fallbackPost")
+    @CircuitBreaker(name = "gatewayClient")
     @Bulkhead(name = "gatewayClient", type = Bulkhead.Type.SEMAPHORE)
     public JsonNode post(String path, Object body, String bearerToken) {
         URI uri = UriComponentsBuilder
@@ -61,8 +61,8 @@ public class CloudDemoGatewayClient {
         return exchange(uri, HttpMethod.POST, body, bearerToken);
     }
 
-    @Retry(name = "gatewayClient")
-    @CircuitBreaker(name = "gatewayClient", fallbackMethod = "fallbackPut")
+    @Retry(name = "gatewayClient", fallbackMethod = "fallbackPut")
+    @CircuitBreaker(name = "gatewayClient")
     @Bulkhead(name = "gatewayClient", type = Bulkhead.Type.SEMAPHORE)
     public JsonNode put(String path, Object body, String bearerToken) {
         URI uri = UriComponentsBuilder
@@ -74,8 +74,8 @@ public class CloudDemoGatewayClient {
         return exchange(uri, HttpMethod.PUT, body, bearerToken);
     }
 
-    @Retry(name = "gatewayClient")
-    @CircuitBreaker(name = "gatewayClient", fallbackMethod = "fallbackDelete")
+    @Retry(name = "gatewayClient", fallbackMethod = "fallbackDelete")
+    @CircuitBreaker(name = "gatewayClient")
     @Bulkhead(name = "gatewayClient", type = Bulkhead.Type.SEMAPHORE)
     public JsonNode delete(String path, String bearerToken) {
         URI uri = UriComponentsBuilder
@@ -87,8 +87,8 @@ public class CloudDemoGatewayClient {
         return exchange(uri, HttpMethod.DELETE, null, bearerToken);
     }
 
-    @Retry(name = "gatewayClient")
-    @CircuitBreaker(name = "gatewayClient", fallbackMethod = "fallbackPostMultipart")
+    @Retry(name = "gatewayClient", fallbackMethod = "fallbackPostMultipart")
+    @CircuitBreaker(name = "gatewayClient")
     @Bulkhead(name = "gatewayClient", type = Bulkhead.Type.SEMAPHORE)
     public JsonNode postMultipart(String path,
                                   String partName,
@@ -145,8 +145,8 @@ public class CloudDemoGatewayClient {
         }
     }
 
-    @Retry(name = "gatewayClient")
-    @CircuitBreaker(name = "gatewayClient", fallbackMethod = "fallbackGetBinary")
+    @Retry(name = "gatewayClient", fallbackMethod = "fallbackGetBinary")
+    @CircuitBreaker(name = "gatewayClient")
     @Bulkhead(name = "gatewayClient", type = Bulkhead.Type.SEMAPHORE)
     public GatewayBinaryResponse getBinary(String path, MultiValueMap<String, String> queryParams, String bearerToken) {
         URI uri = UriComponentsBuilder

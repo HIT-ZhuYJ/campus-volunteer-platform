@@ -1,5 +1,6 @@
 import axios from 'axios'
 import request from '@/utils/request'
+import { getValidToken } from '@/utils/auth'
 
 // 获取活动列表（空字符串 status/category 不传，避免后端按 "" 精确匹配导致无数据）
 export const getActivityList = (params = {}) => {
@@ -91,7 +92,7 @@ export const getMyRegistrations = () => {
 }
 
 export const exportConfirmedMyRegistrations = () => {
-  const token = localStorage.getItem('token')
+  const token = getValidToken()
   return axios({
     url: '/api/activity/myRegistrations/exportConfirmed',
     method: 'get',

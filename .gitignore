@@ -58,6 +58,9 @@ application-prod.properties
 # Redis
 dump.rdb
 
+# Legacy local database scratch files
+database/
+
 # Temp files
 *.tmp
 *.bak

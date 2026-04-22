@@ -186,6 +186,41 @@ class ActivityServiceTest {
     }
 
     @Test
+    void cancelActivityShouldRejectAfterActivityStarts() {
+        Activity activity = new Activity();
+        activity.setId(9L);
+        activity.setStatus("RECRUITING");
+        activity.setStartTime(LocalDateTime.now().minusMinutes(1));
+
+        when(activityMapper.selectById(9L)).thenReturn(activity);
+
+        org.example.common.exception.BusinessException ex = assertThrows(
+                org.example.common.exception.BusinessException.class,
+                () -> activityService.cancelActivity(9L));
+
+        assertEquals("Activities can only be cancelled before they start", ex.getMessage());
+        verify(registrationMapper, never()).delete(any());
+        verify(activityMapper, never()).updateById(any(Activity.class));
+    }
+
+    @Test
+    void completeActivityShouldRejectBeforeActivityEnds() {
+        Activity activity = new Activity();
+        activity.setId(9L);
+        activity.setStatus("RECRUITING");
+        activity.setEndTime(LocalDateTime.now().plusMinutes(1));
+
+        when(activityMapper.selectById(9L)).thenReturn(activity);
+
+        org.example.common.exception.BusinessException ex = assertThrows(
+                org.example.common.exception.BusinessException.class,
+                () -> activityService.completeActivity(9L));
+
+        assertEquals("Activities can only be completed after they end", ex.getMessage());
+        verify(activityMapper, never()).updateById(any(Activity.class));
+    }
+
+    @Test
     void registerActivityShouldReactivateCancelledRegistrationInsteadOfInsert() {
         Activity activity = new Activity();
         activity.setId(19L);
@@ -218,6 +253,30 @@ class ActivityServiceTest {
         assertNotNull(registration.getRegistrationTime());
         verify(registrationMapper).updateById(registration);
         verify(registrationMapper, never()).insert(any(Registration.class));
+        verify(activityMapper).incrementParticipants(19L);
+    }
+
+    @Test
+    void registerActivityShouldRebuildStockFromDatabaseWhenRedisKeyIsMissing() {
+        Activity activity = new Activity();
+        activity.setId(19L);
+        activity.setStatus("RECRUITING");
+        activity.setMaxParticipants(5);
+        activity.setCurrentParticipants(2);
+        activity.setRegistrationStartTime(LocalDateTime.now().minusHours(1));
+        activity.setRegistrationDeadline(LocalDateTime.now().plusHours(2));
+
+        when(activityMapper.selectById(19L)).thenReturn(activity);
+        when(registrationMapper.selectOne(any())).thenReturn(null);
+        when(registrationMapper.selectCount(any())).thenReturn(2L);
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.decrement("activity:stock:19")).thenReturn(-1L, 2L);
+
+        activityService.registerActivity(19L, 1L);
+
+        verify(valueOperations).increment("activity:stock:19");
+        verify(valueOperations).set("activity:stock:19", "3", 7, TimeUnit.DAYS);
+        verify(registrationMapper).insert(any(Registration.class));
         verify(activityMapper).incrementParticipants(19L);
     }
 
@@ -286,7 +345,7 @@ class ActivityServiceTest {
 
         Activity activity = new Activity();
         activity.setId(9L);
-        activity.setStatus("COMPLETED");
+        activity.setStatus("RECRUITING");
         activity.setVolunteerHours(new BigDecimal("2.5"));
         activity.setEndTime(LocalDateTime.now().minusHours(1));
 
@@ -306,6 +365,32 @@ class ActivityServiceTest {
         assertEquals(MessagingConstants.ROUTING_USER_UPDATED, outbox.getEventType());
         assertEquals("user", outbox.getAggregateType());
         assertEquals("5", outbox.getAggregateId());
+    }
+
+    @Test
+    void confirmHoursShouldRejectCompletedActivity() {
+        Registration registration = new Registration();
+        registration.setId(73L);
+        registration.setActivityId(9L);
+        registration.setUserId(5L);
+        registration.setCheckInStatus(1);
+        registration.setHoursConfirmed(0);
+
+        Activity activity = new Activity();
+        activity.setId(9L);
+        activity.setStatus("COMPLETED");
+        activity.setEndTime(LocalDateTime.now().minusHours(1));
+
+        when(registrationMapper.selectById(73L)).thenReturn(registration);
+        when(activityMapper.selectById(9L)).thenReturn(activity);
+
+        org.example.common.exception.BusinessException ex = assertThrows(
+                org.example.common.exception.BusinessException.class,
+                () -> activityService.confirmHours(73L));
+
+        assertEquals("Completed activities cannot be confirmed", ex.getMessage());
+        verify(registrationMapper, never()).updateById(any(Registration.class));
+        verify(eventOutboxMapper, never()).insert(any(EventOutbox.class));
     }
 
     @Test

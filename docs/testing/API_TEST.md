@@ -16,7 +16,7 @@ Docker 模式：
 - 页面入口：`http://localhost:8081/`
 - API 前缀：`http://localhost:8081/api`
 
-说明：以下示例默认使用“开发模式直连网关” `http://localhost:9000`。如果在 Docker A/B 双栈模式下测试，请把示例中的 `http://localhost:9000` 替换为 `http://localhost:8081/api`。
+说明：以下示例默认使用“开发模式直连网关” `http://localhost:9000`。如果在 Docker 单栈模式下测试，请把示例中的 `http://localhost:9000` 替换为 `http://localhost:8081/api`。
 
 ## 2. 统一返回格式
 

@@ -288,6 +288,10 @@ public class ActivityService {
         if ("CANCELLED".equals(existing.getStatus())) {
             throw new BusinessException("Activity has already been cancelled");
         }
+        LocalDateTime now = LocalDateTime.now();
+        if (existing.getStartTime() == null || !now.isBefore(existing.getStartTime())) {
+            throw new BusinessException("Activities can only be cancelled before they start");
+        }
 
         LambdaQueryWrapper<Registration> regWrapper = new LambdaQueryWrapper<>();
         regWrapper.eq(Registration::getActivityId, activityId);
@@ -311,6 +315,10 @@ public class ActivityService {
         }
         if ("CANCELLED".equals(existing.getStatus())) {
             throw new BusinessException("Cancelled activities cannot be completed");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        if (existing.getEndTime() == null || !now.isAfter(existing.getEndTime())) {
+            throw new BusinessException("Activities can only be completed after they end");
         }
 
         existing.setStatus("COMPLETED");
@@ -348,11 +356,7 @@ public class ActivityService {
         }
 
         String stockKey = RedisKeyConstant.getActivityStockKey(activityId);
-        Long stock = redisTemplate.opsForValue().decrement(stockKey);
-        if (stock == null || stock < 0) {
-            redisTemplate.opsForValue().increment(stockKey);
-            throw new BusinessException("No slots available");
-        }
+        Long stock = decrementAvailableStock(activity, stockKey);
 
         if (existingRegistration != null) {
             reactivateRegistration(existingRegistration);
@@ -514,6 +518,7 @@ public class ActivityService {
         w.le(Activity::getStartTime, now)
                 .ge(Activity::getEndTime, now)
                 .ne(Activity::getStatus, "CANCELLED")
+                .ne(Activity::getStatus, "COMPLETED")
                 .orderByAsc(Activity::getStartTime);
         List<Activity> list = activityMapper.selectList(w);
         List<ActivityVO> result = new ArrayList<>(list.size());
@@ -542,6 +547,9 @@ public class ActivityService {
         }
         if ("CANCELLED".equals(activity.getStatus())) {
             throw new BusinessException("Cancelled activities cannot be checked in");
+        }
+        if ("COMPLETED".equals(activity.getStatus())) {
+            throw new BusinessException("Completed activities cannot be checked in");
         }
 
         LocalDateTime now = LocalDateTime.now();
@@ -586,6 +594,9 @@ public class ActivityService {
         }
         if ("CANCELLED".equals(activity.getStatus())) {
             throw new BusinessException("Cancelled activities cannot be confirmed");
+        }
+        if ("COMPLETED".equals(activity.getStatus())) {
+            throw new BusinessException("Completed activities cannot be confirmed");
         }
 
         registration.setHoursConfirmed(1);
@@ -688,6 +699,33 @@ public class ActivityService {
                 .eq(Registration::getActivityId, activityId)
                 .last("LIMIT 1");
         return registrationMapper.selectOne(wrapper);
+    }
+
+    private Long decrementAvailableStock(Activity activity, String stockKey) {
+        Long stock = redisTemplate.opsForValue().decrement(stockKey);
+        if (stock != null && stock >= 0) {
+            return stock;
+        }
+        if (stock != null) {
+            redisTemplate.opsForValue().increment(stockKey);
+        }
+
+        int actualRegistered = countRegisteredForActivity(activity.getId());
+        reconcileActivityRegistrationStats(activity, actualRegistered);
+        if (actualRegistered >= activity.getMaxParticipants()) {
+            throw new BusinessException("No slots available");
+        }
+
+        stock = redisTemplate.opsForValue().decrement(stockKey);
+        if (stock == null || stock < 0) {
+            if (stock != null) {
+                redisTemplate.opsForValue().increment(stockKey);
+            }
+            throw new BusinessException("No slots available");
+        }
+        log.info("rebuilt activity stock from database activityId={} registered={} remainingSlots={}",
+                activity.getId(), actualRegistered, stock);
+        return stock;
     }
 
     private void reactivateRegistration(Registration registration) {

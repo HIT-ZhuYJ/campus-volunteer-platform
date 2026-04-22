@@ -74,8 +74,8 @@
             <template #default="{ row }">
               <el-button type="primary" size="small" link @click="viewDetail(row.id)">查看</el-button>
               <el-button v-if="canEdit(row)" type="warning" size="small" link @click="openEditDialog(row)">编辑</el-button>
-              <el-button v-if="canEdit(row)" type="info" size="small" link @click="handleCancelActivity(row)">取消活动</el-button>
-              <el-button v-if="canEdit(row)" type="success" size="small" link @click="handleCompleteActivity(row)">结项</el-button>
+              <el-button v-if="canCancel(row)" type="info" size="small" link @click="handleCancelActivity(row)">取消活动</el-button>
+              <el-button v-if="canComplete(row)" type="success" size="small" link @click="handleCompleteActivity(row)">结项</el-button>
               <el-button type="success" size="small" link @click="openRegistrationList(row)">
                 报名名单 ({{ row.currentParticipants ?? 0 }})
               </el-button>
@@ -377,6 +377,10 @@ const formatDate = (date) => dayjs(date).format('YYYY-MM-DD HH:mm')
 
 const canEdit = (row) => row.status === 'RECRUITING'
 
+const canCancel = (row) => row.status === 'RECRUITING' && row.startTime && dayjs().isBefore(dayjs(row.startTime))
+
+const canComplete = (row) => row.status === 'RECRUITING' && row.endTime && dayjs().isAfter(dayjs(row.endTime))
+
 const getRowClass = ({ row }) => {
   if (row.status === 'COMPLETED') return 'row-completed'
   if (row.status === 'CANCELLED') return 'row-cancelled'
@@ -485,7 +489,7 @@ const submitEdit = async () => {
 
 const handleCancelActivity = (row) => {
   ElMessageBox.confirm(
-    '确定取消该活动？将删除该活动下全部报名记录并释放名额，已核销时长不回滚。',
+    '确定取消该活动？取消只能在活动开始前操作，将删除该活动下全部报名记录并释放名额。',
     '取消活动',
     { type: 'warning', confirmButtonText: '确定取消', cancelButtonText: '关闭' }
   )
@@ -499,7 +503,7 @@ const handleCancelActivity = (row) => {
 
 const handleCompleteActivity = (row) => {
   ElMessageBox.confirm(
-    '确定将活动标记为已结项？结项后不可再编辑或报名。',
+    '确定将活动标记为已结项？结项只能在活动结束后操作，结项后不可再编辑、报名或核销。',
     '活动结项',
     { type: 'warning', confirmButtonText: '确定结项', cancelButtonText: '关闭' }
   )

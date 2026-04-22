@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { clearAuthStorage, getStoredToken, getStoredUserInfo, isTokenExpired } from '@/utils/auth'
 
 const routes = [
   {
@@ -90,6 +91,12 @@ const routes = [
         meta: { title: '反馈工单' }
       },
       {
+        path: 'users',
+        name: 'AdminUsers',
+        component: () => import('@/views/admin/UserManage.vue'),
+        meta: { title: '用户管理' }
+      },
+      {
         path: 'activities',
         name: 'AdminActivities',
         component: () => import('@/views/admin/ActivityManage.vue'),
@@ -132,12 +139,24 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   document.title = to.meta.title ? `${to.meta.title} - 校园志愿服务平台` : '校园志愿服务平台'
   
-  const token = localStorage.getItem('token')
-  const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+  const token = getStoredToken()
+  const userInfo = getStoredUserInfo()
+
+  if (token && isTokenExpired(token)) {
+    clearAuthStorage()
+    next({
+      path: '/login',
+      query: to.path === '/login' ? {} : { redirect: to.fullPath }
+    })
+    return
+  }
   
   // 如果需要登录且没有token，跳转到登录页
   if (to.meta.requireAuth && !token) {
-    next('/login')
+    next({
+      path: '/login',
+      query: { redirect: to.fullPath }
+    })
     return
   }
   
@@ -152,10 +171,6 @@ router.beforeEach((to, from, next) => {
     next('/home')
     return
   }
-  
-  // 检查 token 是否有效（可选：增加后端验证）
-  // 如果需要更严格的 token 验证，可以在这里添加
-  // 例如：调用后端接口验证 token 是否有效
   
   next()
 })

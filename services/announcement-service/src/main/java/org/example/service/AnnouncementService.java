@@ -109,8 +109,10 @@ public class AnnouncementService {
     @Transactional(rollbackFor = Exception.class)
     public void createAnnouncement(AnnouncementRequest request, Long publisherId) {
         validateRequest(request);
+        List<Long> activityIds = normalizeActivityIds(request);
+        validateLinkedActivities(activityIds);
         Announcement announcement = new Announcement();
-        applyRequest(announcement, request);
+        applyRequest(announcement, request, activityIds);
         announcement.setPublisherId(publisherId);
         if (!StringUtils.hasText(announcement.getStatus())) {
             announcement.setStatus(STATUS_PUBLISHED);
@@ -119,28 +121,30 @@ public class AnnouncementService {
             announcement.setPublishTime(LocalDateTime.now());
         }
         announcementMapper.insert(announcement);
-        syncAnnouncementActivities(announcement.getId(), normalizeActivityIds(request));
+        syncAnnouncementActivities(announcement.getId(), activityIds);
         syncAnnouncementAttachments(announcement.getId(), normalizeAttachments(request));
     }
 
     @Transactional(rollbackFor = Exception.class)
     public void updateAnnouncement(Long id, AnnouncementRequest request) {
         validateRequest(request);
+        List<Long> activityIds = normalizeActivityIds(request);
         Announcement existing = announcementMapper.selectById(id);
         if (existing == null) {
             throw new BusinessException("Announcement not found");
         }
+        validateLinkedActivities(activityIds);
 
         List<String> oldImageKeys = splitImageKeys(existing.getImageKey());
         List<String> oldAttachmentKeys = listAttachmentKeys(id);
         List<AttachmentInput> currentAttachments = normalizeAttachments(request);
         String oldStatus = existing.getStatus();
-        applyRequest(existing, request);
+        applyRequest(existing, request, activityIds);
         if (STATUS_PUBLISHED.equals(existing.getStatus()) && !STATUS_PUBLISHED.equals(oldStatus)) {
             existing.setPublishTime(LocalDateTime.now());
         }
         announcementMapper.updateById(existing);
-        syncAnnouncementActivities(id, normalizeActivityIds(request));
+        syncAnnouncementActivities(id, activityIds);
         syncAnnouncementAttachments(id, currentAttachments);
         deleteRemovedImages(oldImageKeys, splitImageKeys(existing.getImageKey()));
         deleteRemovedObjects(oldAttachmentKeys, currentAttachments.stream().map(AttachmentInput::attachmentKey).toList());
@@ -223,11 +227,10 @@ public class AnnouncementService {
         }
     }
 
-    private void applyRequest(Announcement announcement, AnnouncementRequest request) {
+    private void applyRequest(Announcement announcement, AnnouncementRequest request, List<Long> activityIds) {
         announcement.setTitle(request.getTitle().trim());
         announcement.setContent(request.getContent().trim());
         announcement.setImageKey(joinImageKeys(normalizeImageKeys(request)));
-        List<Long> activityIds = normalizeActivityIds(request);
         announcement.setActivityId(activityIds.isEmpty() ? null : activityIds.get(0));
         announcement.setStatus(StringUtils.hasText(request.getStatus()) ? request.getStatus() : STATUS_PUBLISHED);
         announcement.setSortOrder(request.getSortOrder() == null ? 0 : request.getSortOrder());
@@ -375,6 +378,28 @@ public class AnnouncementService {
             }
         }
         return new ArrayList<>(normalized);
+    }
+
+    private void validateLinkedActivities(List<Long> activityIds) {
+        if (activityIds == null || activityIds.isEmpty()) {
+            return;
+        }
+        List<ActivityProjection> projections = activityProjectionMapper.selectBatchIds(activityIds);
+        Map<Long, ActivityProjection> projectionMap = new HashMap<>();
+        for (ActivityProjection projection : projections) {
+            if (projection != null && projection.getId() != null) {
+                projectionMap.put(projection.getId(), projection);
+            }
+        }
+        for (Long activityId : activityIds) {
+            ActivityProjection projection = projectionMap.get(activityId);
+            if (projection == null) {
+                throw new BusinessException("Linked activity does not exist: " + activityId);
+            }
+            if ("CANCELLED".equals(projection.getStatus())) {
+                throw new BusinessException("Cancelled activities cannot be linked to announcements: " + activityId);
+            }
+        }
     }
 
     private List<AttachmentInput> normalizeAttachments(AnnouncementRequest request) {

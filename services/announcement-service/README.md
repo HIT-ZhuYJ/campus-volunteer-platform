@@ -58,4 +58,4 @@
 
 - 默认本机日志文件：按运行方式决定，可通过 `APP_LOG_FILE` 覆盖
 - Docker 日志文件：`/app/logs/debug.log`
-- Docker A/B 双栈挂载目录：`log/a/announcement-service/` 或 `log/b/announcement-service/`
+- Docker 单栈日志挂载目录：`log/docker/announcement-service/`

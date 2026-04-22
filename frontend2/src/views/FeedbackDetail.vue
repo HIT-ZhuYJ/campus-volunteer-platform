@@ -17,15 +17,6 @@
           </div>
         </div>
 
-        <el-button
-          v-if="canOperate"
-          type="success"
-          class="close-btn"
-          :loading="closing"
-          @click="handleClose"
-        >
-          确认关闭
-        </el-button>
       </section>
 
       <div class="detail-grid">
@@ -280,11 +271,6 @@ onMounted(fetchDetail)
   font-size: 13px;
 }
 
-.close-btn {
-  height: 44px;
-  border-radius: 999px;
-}
-
 .detail-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
@@ -419,6 +405,10 @@ onMounted(fetchDetail)
   height: 44px;
   margin-bottom: 10px;
   border-radius: 999px;
+}
+
+.full-btn + .full-btn {
+  margin-left: 0;
 }
 
 @media (max-width: 900px) {

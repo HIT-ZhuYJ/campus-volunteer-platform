@@ -52,3 +52,56 @@ export const getVolunteerHoursList = (keyword = '') => {
     params: keyword ? { keyword } : {}
   })
 }
+
+// 管理员：分页查询用户
+export const getAdminUserList = (params = {}) => {
+  return request({
+    url: '/user/admin/users',
+    method: 'get',
+    params
+  })
+}
+
+// 管理员：查询用户详情
+export const getAdminUserDetail = (id) => {
+  return request({
+    url: `/user/admin/users/${id}`,
+    method: 'get'
+  })
+}
+
+// 管理员：修改用户资料
+export const updateAdminUserProfile = (id, data) => {
+  return request({
+    url: `/user/admin/users/${id}/profile`,
+    method: 'put',
+    data
+  })
+}
+
+// 管理员：重置用户密码
+export const resetAdminUserPassword = (id, data) => {
+  return request({
+    url: `/user/admin/users/${id}/password`,
+    method: 'put',
+    data
+  })
+}
+
+// 管理员：调整用户角色
+export const updateAdminUserRole = (id, data) => {
+  return request({
+    url: `/user/admin/users/${id}/role`,
+    method: 'put',
+    data
+  })
+}
+
+// 管理员：调整用户状态
+export const updateAdminUserStatus = (id, data) => {
+  return request({
+    url: `/user/admin/users/${id}/status`,
+    method: 'put',
+    data
+  })
+}

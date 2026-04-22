@@ -139,6 +139,7 @@ import { useRouter } from 'vue-router'
 import Layout from '@/components/Layout.vue'
 import { getUserInfo, updateUserInfo, updatePassword } from '@/api/user'
 import { ElMessage } from 'element-plus'
+import { clearAuthStorage } from '@/utils/auth'
 
 const router = useRouter()
 const loading = ref(false)
@@ -241,8 +242,7 @@ const handleUpdatePassword = async () => {
     await updatePassword(passwordForm.value)
     ElMessage.success('密码修改成功，请重新登录')
     showPasswordDialog.value = false
-    localStorage.removeItem('token')
-    localStorage.removeItem('userInfo')
+    clearAuthStorage()
     setTimeout(() => {
       router.push('/login')
     }, 1000)

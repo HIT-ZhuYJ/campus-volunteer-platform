@@ -1,337 +1,160 @@
-# 部署说明（A/B 双栈 + 共享基础组件 + Edge 统一入口）
+# 部署说明
 
-本文档对应当前仓库的**最终部署骨架**：
+本项目当前只保留三种部署形态：
 
-- 共享组件：`mysql`、`redis`、`minio`、`mcp-service`
-- 共享观测组件：`otel-collector`、`prometheus`、`grafana`、`loki`、`promtail`、`tempo`
-- A 栈：`gateway-a`、`user-service-a`(2)、`activity-service-a`(2)、`announcement-service-a`(2)、`feedback-service-a`(2)、`nacos-a`、`rabbitmq-a`、`monitor-a`
-- B 栈：`gateway-b`、`user-service-b`(2)、`activity-service-b`(2)、`announcement-service-b`(2)、`feedback-service-b`(2)、`nacos-b`、`rabbitmq-b`、`monitor-b`
-- 边缘入口：`edge-nginx`
+1. 本机部署：`deploy/local`
+2. Docker 单栈部署：根目录 `docker-compose.yml`
+3. Kubernetes 部署：`deploy/k8s`
 
-> 说明：`mysql` 当前仍为共享实例；前端静态资源由 `edge-nginx` 镜像构建阶段统一打包并托管，不再保留栈内 frontend 服务。
+旧的多栈 Compose、蓝绿分流和多份 Compose 拆分文件已经移除。
 
----
+## 1. 本机部署
 
-## 1. 架构图
+适合开发调试。基础组件和应用服务都在本机运行，Nginx 只做静态资源托管和反向代理。
 
-```text
-Browser
-  -> edge-nginx (:8081)
-      |- /                  -> frontend2/dist (SPA)
-      |- /api/*             -> gateway-a 或 gateway-b (A/B 分流)
-      |- /monitor/a/*       -> monitor-a
-      |- /monitor/b/*       -> monitor-b
-      |- /mcp* + OAuth 路径 -> mcp-service
+配置位置：
 
-shared:
-  mysql, redis, minio, mcp-service
+- `deploy/local/README.md`
+- `deploy/local/nginx/cloud-demo.local.conf`
 
-stack-a:
-  nacos-a, rabbitmq-a, monitor-a, gateway-a,
-  user-service-a(x2), activity-service-a(x2),
-  announcement-service-a(x2), feedback-service-a(x2)
+基本步骤：
 
-stack-b:
-  nacos-b, rabbitmq-b, monitor-b, gateway-b,
-  user-service-b(x2), activity-service-b(x2),
-  announcement-service-b(x2), feedback-service-b(x2)
+```bash
+mysql -u root -p < deploy/common/bootstrap-db.sql
+mvn clean install -DskipTests
+cd frontend2 && npm install && npm run build
 ```
 
----
+后端建议启动顺序：
 
-## 2. Compose 文件说明
+1. `UserApplication`
+2. `ActivityApplication`
+3. `AnnouncementApplication`
+4. `FeedbackApplication`
+5. `GatewayApplication`
+6. `MonitorApplication`
+7. `McpApplication`
 
-- `compose.shared.yml`
-  - 包含：`mysql`、`redis`、`minio`、`mcp-service` 与 shared 层可观测组件
-- `compose.stack.yml`
-  - 仅包含：`nacos`、`rabbitmq`、`monitor-service`、`gateway-service`、`user-service`、`activity-service`、`announcement-service`、`feedback-service`
-  - 同一份文件通过 `--env-file` + `-p` 区分 A/B 栈
-  - `user-service`、`activity-service`、`announcement-service`、`feedback-service` 的默认副本数由 `deploy/stack-a.env` / `deploy/stack-b.env` 中的 `*_SERVICE_REPLICAS` 控制，普通 `docker compose up -d --build` 不会再悄悄缩回 1
-- `compose.edge.yml`
-  - 仅包含：`edge-nginx`
+默认访问：
+
+- 前台：`http://localhost/`
+- 监控后台：`http://localhost/monitor/`
+- MCP：`http://localhost/mcp`
+- 前端开发模式：`http://localhost:3000`
+
+## 2. Docker 单栈部署
+
+适合本机或单机服务器快速运行整套系统。每个服务只保留一个容器实例，不做蓝绿分流，也不做自动扩缩容。
+
+配置位置：
+
 - `docker-compose.yml`
-  - 历史单架构 compose，保留作兼容参考，不是当前推荐入口
+- `deploy/docker/docker-compose.yml`
+- `deploy/docker/.env.example`
+- `deploy/docker/edge-nginx/`
+- `deploy/docker/observability/`
 
----
-
-## 3. 日志目录与挂载
-
-当前 Docker 运行期日志统一挂载到仓库根目录 `log/`：
-
-- `log/shared/mcp-service/`：shared 层 MCP 日志
-- `log/a/{gateway-service,user-service,activity-service,announcement-service,feedback-service,monitor-service}/`：A 栈日志
-- `log/b/{gateway-service,user-service,activity-service,announcement-service,feedback-service,monitor-service}/`：B 栈日志
-- `log/edge/edge-nginx/`：edge nginx 访问与错误日志
-
-说明：
-
-1. 业务服务容器内仍写入 `/app/logs/debug.log`
-2. edge-nginx 写入 `/var/log/nginx/access.log` 与 `/var/log/nginx/error.log`
-3. 宿主机排障时优先查看 `log/`，而不是进入源码目录寻找日志
-4. Loki/Promtail 当前以 Docker 容器发现为主，`edge` 保留文件日志兜底
-
----
-
-## 4. 可观测栈
-
-shared 层当前包含：
-
-- `prometheus`
-- `grafana`
-- `loki`
-- `promtail`
-- `tempo`
-- `otel-collector`
-
-宿主机访问地址：
-
-- Grafana：`http://localhost:3000`
-- Prometheus：`http://localhost:9090`
-
-Grafana 默认账号：`admin / admin`
-
-说明：
-
-1. Prometheus 已改为按 Docker 容器实例抓取 `/actuator/prometheus`
-2. Loki 已通过 Promtail 按容器实例采集业务服务日志
-3. Grafana 已预置 Prometheus、Loki、Tempo 数据源
-4. 详细使用方式见 [../observability/OBSERVABILITY.md](../observability/OBSERVABILITY.md)
-
----
-
-## 5. 网络隔离
-
-当前部署使用以下网络：
-
-- `edge-a-net`：`edge-nginx <-> gateway-a、monitor-a`
-- `edge-b-net`：`edge-nginx <-> gateway-b、monitor-b`
-- `edge-shared-net`：`edge-nginx <-> mcp-service`
-- `shared-a-net`：A 栈服务与 `mysql/redis/minio/mcp-service`
-- `shared-b-net`：B 栈服务与 `mysql/redis/minio/mcp-service`
-
-栈内还使用独立内部网络：
-
-- `stack-a-internal-net`
-- `stack-b-internal-net`
-
-通过网络与服务命名双重隔离，A/B 默认互不可见。
-
----
-
-## 6. 启动命令
-
-### 6.1 shared
-
-Linux/macOS:
-
-```bash
-bash deploy/up-shared.sh
-```
-
-Windows PowerShell:
+启动：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File deploy/up-shared.ps1
+Copy-Item .env.example .env
+docker compose up -d --build
 ```
-
-### 6.2 stack-a
-
-Linux/macOS:
 
 ```bash
-bash deploy/up-stack-a.sh
+cp .env.example .env
+docker compose up -d --build
 ```
 
-Windows PowerShell:
+关闭：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File deploy/up-stack-a.ps1
+docker compose down
 ```
-
-### 6.3 stack-b
-
-Linux/macOS:
 
 ```bash
-bash deploy/up-stack-b.sh
+docker compose down
 ```
 
-Windows PowerShell:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File deploy/up-stack-b.ps1
-```
-
-### 6.4 edge
-
-Linux/macOS:
-
-```bash
-bash deploy/up-edge.sh
-```
-
-Windows PowerShell:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File deploy/up-edge.ps1
-```
-
----
-
-## 7. 一键部署 / 一键关闭
-
-一键部署（顺序：shared -> stack-a -> stack-b -> edge）：
-
-```bash
-bash deploy/deploy-all.sh
-```
-
-```powershell
-powershell -ExecutionPolicy Bypass -File deploy/deploy-all.ps1
-```
-
-一键关闭：
-
-```bash
-bash deploy/down-all.sh
-```
-
-```powershell
-powershell -ExecutionPolicy Bypass -File deploy/down-all.ps1
-```
-
----
-
-## 8. 扩容命令
-
-当前默认副本数来自：
-
-- `deploy/stack-a.env`
-- `deploy/stack-b.env`
-
-默认值：
-
-- `USER_SERVICE_REPLICAS=2`
-- `ACTIVITY_SERVICE_REPLICAS=2`
-- `ANNOUNCEMENT_SERVICE_REPLICAS=2`
-- `FEEDBACK_SERVICE_REPLICAS=2`
-
-对 A 栈扩容示例：先修改 `deploy/stack-a.env`：
-
-```env
-USER_SERVICE_REPLICAS=3
-ACTIVITY_SERVICE_REPLICAS=3
-ANNOUNCEMENT_SERVICE_REPLICAS=3
-FEEDBACK_SERVICE_REPLICAS=3
-```
-
-然后执行：
-
-```bash
-bash deploy/up-stack-a.sh
-```
-
-对 B 栈扩容示例：先修改 `deploy/stack-b.env` 后再执行：
-
-```bash
-bash deploy/up-stack-b.sh
-```
-
----
-
-## 9. 验证命令
-
-容器状态：
-
-```bash
-docker compose -p shared -f compose.shared.yml ps
-docker compose -p stack-a --env-file deploy/stack-a.env -f compose.stack.yml ps
-docker compose -p stack-b --env-file deploy/stack-b.env -f compose.stack.yml ps
-docker compose -p edge -f compose.edge.yml ps
-```
-
-访问验证：
+默认访问：
 
 - 前台：`http://localhost:8081/`
-- 监控 A：`http://localhost:8081/monitor/a/`
-- 监控 B：`http://localhost:8081/monitor/b/`
+- 监控后台：`http://localhost:8081/monitor/`
 - MCP：`http://localhost:8081/mcp`
 - Grafana：`http://localhost:3000`
 - Prometheus：`http://localhost:9090`
+- Nacos：`http://localhost:8848/nacos`
+- MinIO Console：`http://localhost:9006`
 
-说明：当前 Docker A/B 模式默认只暴露 `edge-nginx` 的 `8081`，内部网关、监控、Nacos、MinIO 等端口不再直接映射到宿主机。
+Docker 单栈流量路径：
 
-网关 A/B 连通性（容器内）：
-
-```bash
-docker compose -p edge -f compose.edge.yml exec edge-nginx sh -lc "wget -qO- http://gateway-a:9000/actuator/health"
-docker compose -p edge -f compose.edge.yml exec edge-nginx sh -lc "wget -qO- http://gateway-b:9000/actuator/health"
+```text
+Browser -> edge-nginx -> gateway-service -> user/activity/announcement/feedback
 ```
 
-数据库迁移（旧数据卷场景）：
+## 3. Kubernetes 部署
 
-```bash
-docker compose -p shared -f compose.shared.yml exec -T mysql \
-  mysql --default-character-set=utf8mb4 -uroot -p123888 volunteer_platform \
-  < database/migrations/20260415_add_messaging_outbox.sql
+适合演示更接近生产的部署拓扑。业务服务使用 Deployment，多副本通过 Kubernetes Service 进行负载均衡；中间件使用 StatefulSet 和 PVC。
+
+配置位置：
+
+- `deploy/k8s/README.md`
+- `deploy/k8s/cloud-demo/*.yaml`
+- `deploy/k8s/observability/*.yaml`
+- `deploy/k8s/scripts/*`
+
+部署：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File deploy\k8s\scripts\apply-all.ps1
+powershell -ExecutionPolicy Bypass -File deploy\k8s\scripts\init-db.ps1
 ```
 
----
-
-## 10. 排障命令
-
-查看日志：
-
 ```bash
-docker compose -p stack-a --env-file deploy/stack-a.env -f compose.stack.yml logs -f gateway-service
-docker compose -p stack-b --env-file deploy/stack-b.env -f compose.stack.yml logs -f gateway-service
-docker compose -p shared -f compose.shared.yml logs -f mcp-service
-docker compose -p edge -f compose.edge.yml logs -f edge-nginx
+bash deploy/k8s/scripts/apply-all.sh
+bash deploy/k8s/scripts/init-db.sh
 ```
 
-查看宿主机落盘日志：
+本机 Docker Desktop 访问方式：
 
-```bash
-ls log/shared/mcp-service
-ls log/a/gateway-service
-ls log/b/gateway-service
-ls log/edge/edge-nginx
+```powershell
+kubectl -n ingress-nginx port-forward svc/ingress-nginx-controller 18081:80
 ```
 
-查看 Prometheus targets：
+hosts 增加：
 
-```bash
-curl http://127.0.0.1:9090/api/v1/targets
+```text
+127.0.0.1 cloud-demo.local grafana.cloud-demo.local prometheus.cloud-demo.local
 ```
 
-查看 Loki 实例标签：
+访问：
 
-```bash
-docker run --rm --network shared-a-net curlimages/curl:8.10.1 -sS "http://loki:3100/loki/api/v1/label/instance/values"
+- `http://cloud-demo.local:18081/`
+- `http://grafana.cloud-demo.local:18081/`
+- `http://prometheus.cloud-demo.local:18081/`
+
+清理：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File deploy\k8s\scripts\delete-all.ps1
 ```
 
-查看网络：
-
 ```bash
-docker network ls | grep -E "edge-|shared-|stack-"
+bash deploy/k8s/scripts/delete-all.sh
 ```
 
-检查 outbox / 幂等记录：
+## 4. 通用数据库初始化
 
-```bash
-docker compose -p shared -f compose.shared.yml exec mysql \
-  mysql -uroot -p123888 -e "SELECT status, COUNT(*) c FROM volunteer_platform.event_outbox GROUP BY status;"
+本机、Docker 和 Kubernetes 共用：
 
-docker compose -p shared -f compose.shared.yml exec mysql \
-  mysql -uroot -p123888 -e "SELECT consumer_name, COUNT(*) c FROM volunteer_platform.mq_consume_record GROUP BY consumer_name;"
-```
+- `deploy/common/bootstrap-db.sql`
 
----
+## 5. 当前不再保留的部署形态
 
-## 11. 关键约束回顾
+以下旧形态已清理：
 
-- 同步调用：OpenFeign + Spring Cloud LoadBalancer（服务直连，不绕 gateway）
-- 异步解耦：RabbitMQ（不把所有调用都改成 MQ）
-- A 栈仅连接 `nacos-a` / `rabbitmq-a`
-- B 栈仅连接 `nacos-b` / `rabbitmq-b`
-- 可扩副本服务不设置 `container_name`
+- 多栈 Compose
+- 旧环境文件
+- 根目录 Compose 拆分文件
+- edge-nginx 50/50 分流配置
+- 旧的启动、关闭、健康检查脚本

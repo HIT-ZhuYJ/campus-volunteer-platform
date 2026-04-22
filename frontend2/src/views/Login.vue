@@ -114,12 +114,13 @@
 
 <script setup>
 import { ref, reactive } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { login } from '@/api/user'
 import { useUserStore } from '@/store/user'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 const formRef = ref()
 const loading = ref(false)
@@ -146,6 +147,11 @@ const quickLogin = (account) => {
   handleLogin()
 }
 
+const safeRedirect = () => {
+  const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : ''
+  return redirect.startsWith('/') && !redirect.startsWith('//') ? redirect : ''
+}
+
 const handleLogin = async () => {
   await formRef.value.validate()
   loading.value = true
@@ -157,11 +163,7 @@ const handleLogin = async () => {
 
     ElMessage.success('登录成功')
 
-    if (res.data.userInfo.role === 'ADMIN') {
-      router.push('/admin/activities')
-    } else {
-      router.push('/home')
-    }
+    router.push(safeRedirect() || (res.data.userInfo.role === 'ADMIN' ? '/admin/activities' : '/home'))
   } catch (error) {
     console.error('登录失败:', error)
   } finally {

@@ -1,5 +1,6 @@
 import axios from 'axios'
 import request from '@/utils/request'
+import { getValidToken } from '@/utils/auth'
 
 export const createFeedback = (data) => {
   return request({
@@ -112,7 +113,7 @@ export const updateFeedbackPriority = (id, priority) => {
 }
 
 export const getFeedbackAttachmentBlob = (objectKey, fileName) => {
-  const token = localStorage.getItem('token')
+  const token = getValidToken()
   return axios({
     url: '/api/feedback/attachments',
     method: 'get',

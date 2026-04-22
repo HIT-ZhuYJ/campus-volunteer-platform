@@ -1,12 +1,12 @@
-﻿# 文档中心
+# 文档中心
 
 项目文档已按主题拆分到 `docs/` 下，根目录只保留总入口 [`README.md`](../README.md)。
 
-当前仓库的推荐运行与部署方式已经对齐为：
+当前仓库只保留三种部署方式：
 
-- 本机 Nginx 开发模式
-- Docker A/B 双栈模式（`compose.shared.yml` + `compose.stack.yml` + `compose.edge.yml`）
-- 运行期日志统一落到仓库根目录 `log/`
+- 本机部署：`deploy/local`
+- Docker 单栈部署：`deploy/docker`
+- Kubernetes 部署：`deploy/k8s`
 
 ## 总览
 

@@ -1,5 +1,7 @@
 package org.example.service;
 
+import org.example.common.exception.BusinessException;
+import org.example.dto.AnnouncementRequest;
 import org.example.entity.ActivityProjection;
 import org.example.entity.Announcement;
 import org.example.entity.AnnouncementActivity;
@@ -19,7 +21,10 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -89,5 +94,40 @@ class AnnouncementServiceTest {
         assertEquals("Campus Cleanup", detail.getActivities().get(0).getTitle());
         assertEquals("Playground", detail.getActivities().get(0).getLocation());
         assertEquals("RECRUITING", detail.getActivities().get(0).getStatus());
+    }
+
+    @Test
+    void createAnnouncementShouldRejectMissingLinkedActivity() {
+        AnnouncementRequest request = new AnnouncementRequest();
+        request.setTitle("活动公告");
+        request.setContent("请按时参加");
+        request.setActivityIds(List.of(7L));
+
+        when(activityProjectionMapper.selectBatchIds(any())).thenReturn(List.of());
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> announcementService.createAnnouncement(request, 1L));
+
+        assertEquals("Linked activity does not exist: 7", ex.getMessage());
+        verify(announcementMapper, never()).insert(any(Announcement.class));
+    }
+
+    @Test
+    void createAnnouncementShouldRejectCancelledLinkedActivity() {
+        AnnouncementRequest request = new AnnouncementRequest();
+        request.setTitle("活动公告");
+        request.setContent("请按时参加");
+        request.setActivityIds(List.of(7L));
+
+        ActivityProjection projection = new ActivityProjection();
+        projection.setId(7L);
+        projection.setStatus("CANCELLED");
+        when(activityProjectionMapper.selectBatchIds(any())).thenReturn(List.of(projection));
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> announcementService.createAnnouncement(request, 1L));
+
+        assertEquals("Cancelled activities cannot be linked to announcements: 7", ex.getMessage());
+        verify(announcementMapper, never()).insert(any(Announcement.class));
     }
 }

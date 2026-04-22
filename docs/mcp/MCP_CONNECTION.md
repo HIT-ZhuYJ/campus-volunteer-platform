@@ -27,12 +27,10 @@ OAuth 相关端点：
 
 ## 2. 启动方式
 
-### Docker A/B 双栈
+### Docker 单栈
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File deploy/up-shared.ps1
-powershell -ExecutionPolicy Bypass -File deploy/up-stack-a.ps1
-powershell -ExecutionPolicy Bypass -File deploy/up-edge.ps1
+powershell -ExecutionPolicy Bypass -File deploy/docker/up.ps1
 ```
 
 MCP 地址：
@@ -42,13 +40,13 @@ MCP 地址：
 如果已经整套环境启动完毕，只重建 `mcp-service` 时可使用：
 
 ```powershell
-docker compose -p shared -f compose.shared.yml up -d --build mcp-service
+docker compose -p cloud-demo -f deploy/docker/docker-compose.yml up -d --build mcp-service
 ```
 
 说明：
 
-- `mcp-service` 部署在 shared 层，但其默认上游业务网关指向 A 栈，因此至少需要 `shared + stack-a + edge`
-- 运行期日志位于 `log/shared/mcp-service/debug.log`
+- `mcp-service` 默认上游业务网关是 `http://gateway-service:9000`
+- 运行期日志位于 `log/docker/mcp-service/debug.log`
 
 ### 本机 Java + 本机 Nginx
 
@@ -392,7 +390,7 @@ curl.exe "http://localhost:8081/.well-known/oauth-authorization-server"
 若返回里缺少 `:8081`，说明前端 Nginx 还没加载最新配置，可重建：
 
 ```powershell
-docker compose -p edge -f compose.edge.yml up -d --build edge-nginx
+docker compose -p cloud-demo -f deploy/docker/docker-compose.yml up -d --build edge-nginx
 ```
 
 ### `/mcp` 返回 401
@@ -432,7 +430,7 @@ Invoke-RestMethod -Method Post -Uri "http://localhost/mcp/auth/login" -ContentTy
 - [services/mcp-service/src/main/java/org/example/mcp/auth/AuthController.java](../../services/mcp-service/src/main/java/org/example/mcp/auth/AuthController.java)
 - [services/mcp-service/src/main/java/org/example/mcp/auth/McpAccessTokenFilter.java](../../services/mcp-service/src/main/java/org/example/mcp/auth/McpAccessTokenFilter.java)
 - [services/mcp-service/src/main/resources/application.properties](../../services/mcp-service/src/main/resources/application.properties)
-- [deploy/nginx/cloud-demo.local.conf](../../deploy/nginx/cloud-demo.local.conf)
+- [deploy/local/nginx/cloud-demo.local.conf](../../deploy/local/nginx/cloud-demo.local.conf)
 - [frontend2/nginx.docker.conf](../../frontend2/nginx.docker.conf)
 - [scripts/mcp-login.ps1](../../scripts/mcp-login.ps1)
 - [scripts/mcp-print-token.ps1](../../scripts/mcp-print-token.ps1)

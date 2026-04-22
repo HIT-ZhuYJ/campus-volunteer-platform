@@ -127,7 +127,8 @@ import {
   Notification,
   Plus,
   SwitchButton,
-  Tickets
+  Tickets,
+  UserFilled
 } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/user'
 
@@ -140,6 +141,7 @@ const isMobile = ref(false)
 const navItems = [
   { path: '/admin/announcements', label: '公告管理', icon: Notification },
   { path: '/admin/feedback', label: '反馈工单', icon: Tickets },
+  { path: '/admin/users', label: '用户管理', icon: UserFilled },
   { path: '/admin/activities', label: '活动管理', icon: Calendar },
   { path: '/admin/create', label: '发布活动', icon: Plus },
   { path: '/admin/checkin', label: '活动签到', icon: Checked },
