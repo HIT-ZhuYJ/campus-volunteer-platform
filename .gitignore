@@ -74,5 +74,7 @@ dist/
 .opencode/
 .agents/
 .claude/
+.tools/
 
 skills-lock.json
+deploy/k8s/cloud-demo/secret.yaml

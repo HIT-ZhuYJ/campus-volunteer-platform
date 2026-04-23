@@ -212,6 +212,8 @@ services:
       args:
         MAVEN_IMAGE: ${MAVEN_IMAGE:-public.ecr.aws/docker/library/maven:3.9.9-eclipse-temurin-17}
         RUNTIME_IMAGE: ${JAVA_RUNTIME_IMAGE:-public.ecr.aws/docker/library/eclipse-temurin:17-jre}
+        MAVEN_CLI_OPTS: ${MAVEN_CLI_OPTS:--B -ntp -Dmaven.wagon.http.retryHandler.count=5 -Dmaven.wagon.http.retryHandler.requestSentEnabled=true}
+        MAVEN_MIRROR_URL: ${MAVEN_MIRROR_URL:-}
     restart: unless-stopped
     environment:
       APP_LOG_FILE: /app/logs/debug.log
@@ -256,6 +258,8 @@ services:
       args:
         MAVEN_IMAGE: ${MAVEN_IMAGE:-public.ecr.aws/docker/library/maven:3.9.9-eclipse-temurin-17}
         RUNTIME_IMAGE: ${JAVA_RUNTIME_IMAGE:-public.ecr.aws/docker/library/eclipse-temurin:17-jre}
+        MAVEN_CLI_OPTS: ${MAVEN_CLI_OPTS:--B -ntp -Dmaven.wagon.http.retryHandler.count=5 -Dmaven.wagon.http.retryHandler.requestSentEnabled=true}
+        MAVEN_MIRROR_URL: ${MAVEN_MIRROR_URL:-}
     restart: unless-stopped
     environment:
       APP_LOG_FILE: /app/logs/debug.log
@@ -311,6 +315,8 @@ services:
       args:
         MAVEN_IMAGE: ${MAVEN_IMAGE:-public.ecr.aws/docker/library/maven:3.9.9-eclipse-temurin-17}
         RUNTIME_IMAGE: ${JAVA_RUNTIME_IMAGE:-public.ecr.aws/docker/library/eclipse-temurin:17-jre}
+        MAVEN_CLI_OPTS: ${MAVEN_CLI_OPTS:--B -ntp -Dmaven.wagon.http.retryHandler.count=5 -Dmaven.wagon.http.retryHandler.requestSentEnabled=true}
+        MAVEN_MIRROR_URL: ${MAVEN_MIRROR_URL:-}
     restart: unless-stopped
     environment:
       APP_LOG_FILE: /app/logs/debug.log
@@ -360,6 +366,8 @@ services:
       args:
         MAVEN_IMAGE: ${MAVEN_IMAGE:-public.ecr.aws/docker/library/maven:3.9.9-eclipse-temurin-17}
         RUNTIME_IMAGE: ${JAVA_RUNTIME_IMAGE:-public.ecr.aws/docker/library/eclipse-temurin:17-jre}
+        MAVEN_CLI_OPTS: ${MAVEN_CLI_OPTS:--B -ntp -Dmaven.wagon.http.retryHandler.count=5 -Dmaven.wagon.http.retryHandler.requestSentEnabled=true}
+        MAVEN_MIRROR_URL: ${MAVEN_MIRROR_URL:-}
     restart: unless-stopped
     environment:
       APP_LOG_FILE: /app/logs/debug.log
@@ -409,6 +417,8 @@ services:
       args:
         MAVEN_IMAGE: ${MAVEN_IMAGE:-public.ecr.aws/docker/library/maven:3.9.9-eclipse-temurin-17}
         RUNTIME_IMAGE: ${JAVA_RUNTIME_IMAGE:-public.ecr.aws/docker/library/eclipse-temurin:17-jre}
+        MAVEN_CLI_OPTS: ${MAVEN_CLI_OPTS:--B -ntp -Dmaven.wagon.http.retryHandler.count=5 -Dmaven.wagon.http.retryHandler.requestSentEnabled=true}
+        MAVEN_MIRROR_URL: ${MAVEN_MIRROR_URL:-}
     restart: unless-stopped
     environment:
       APP_LOG_FILE: /app/logs/debug.log
@@ -438,6 +448,8 @@ services:
       args:
         MAVEN_IMAGE: ${MAVEN_IMAGE:-public.ecr.aws/docker/library/maven:3.9.9-eclipse-temurin-17}
         RUNTIME_IMAGE: ${JAVA_RUNTIME_IMAGE:-public.ecr.aws/docker/library/eclipse-temurin:17-jre}
+        MAVEN_CLI_OPTS: ${MAVEN_CLI_OPTS:--B -ntp -Dmaven.wagon.http.retryHandler.count=5 -Dmaven.wagon.http.retryHandler.requestSentEnabled=true}
+        MAVEN_MIRROR_URL: ${MAVEN_MIRROR_URL:-}
     restart: unless-stopped
     environment:
       APP_LOG_FILE: /app/logs/debug.log
@@ -486,6 +498,8 @@ services:
       args:
         MAVEN_IMAGE: ${MAVEN_IMAGE:-public.ecr.aws/docker/library/maven:3.9.9-eclipse-temurin-17}
         RUNTIME_IMAGE: ${JAVA_RUNTIME_IMAGE:-public.ecr.aws/docker/library/eclipse-temurin:17-jre}
+        MAVEN_CLI_OPTS: ${MAVEN_CLI_OPTS:--B -ntp -Dmaven.wagon.http.retryHandler.count=5 -Dmaven.wagon.http.retryHandler.requestSentEnabled=true}
+        MAVEN_MIRROR_URL: ${MAVEN_MIRROR_URL:-}
     restart: unless-stopped
     environment:
       APP_LOG_FILE: /app/logs/debug.log

@@ -1,7 +1,13 @@
+# syntax=docker/dockerfile:1.7
 ARG MAVEN_IMAGE=public.ecr.aws/docker/library/maven:3.9.9-eclipse-temurin-17
 ARG RUNTIME_IMAGE=public.ecr.aws/docker/library/eclipse-temurin:17-jre
+ARG MAVEN_CLI_OPTS=-B -ntp -Dmaven.wagon.http.retryHandler.count=5 -Dmaven.wagon.http.retryHandler.requestSentEnabled=true
+ARG MAVEN_MIRROR_URL=
 
 FROM ${MAVEN_IMAGE} AS build
+
+ARG MAVEN_CLI_OPTS
+ARG MAVEN_MIRROR_URL
 
 WORKDIR /workspace
 
@@ -17,13 +23,26 @@ COPY services/feedback-service/pom.xml services/feedback-service/pom.xml
 COPY services/monitor-service/pom.xml services/monitor-service/pom.xml
 COPY services/mcp-service/pom.xml services/mcp-service/pom.xml
 
-RUN mvn -B -pl services/feedback-service -am dependency:go-offline
+RUN if [ -n "$MAVEN_MIRROR_URL" ]; then \
+      printf '%s\n' \
+        '<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 https://maven.apache.org/xsd/settings-1.0.0.xsd">' \
+        '  <mirrors>' \
+        '    <mirror>' \
+        '      <id>custom-mirror</id>' \
+        '      <mirrorOf>*</mirrorOf>' \
+        "      <url>$MAVEN_MIRROR_URL</url>" \
+        '    </mirror>' \
+        '  </mirrors>' \
+        '</settings>' > /tmp/maven-settings.xml; \
+    fi
+
+RUN --mount=type=cache,target=/root/.m2 sh -lc 'SETTINGS=""; if [ -n "$MAVEN_MIRROR_URL" ]; then SETTINGS="--settings /tmp/maven-settings.xml"; fi; mvn $MAVEN_CLI_OPTS $SETTINGS -pl services/feedback-service -am dependency:go-offline'
 
 COPY services/common services/common
 COPY services/common-messaging services/common-messaging
 COPY services/feedback-service services/feedback-service
 
-RUN mvn -B -pl services/feedback-service -am clean package -DskipTests
+RUN --mount=type=cache,target=/root/.m2 sh -lc 'SETTINGS=""; if [ -n "$MAVEN_MIRROR_URL" ]; then SETTINGS="--settings /tmp/maven-settings.xml"; fi; mvn $MAVEN_CLI_OPTS $SETTINGS -pl services/feedback-service -am clean package -DskipTests'
 
 FROM ${RUNTIME_IMAGE}
 

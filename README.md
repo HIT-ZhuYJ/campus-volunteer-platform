@@ -1,75 +1,35 @@
 # 校园志愿服务管理平台
 
-基于 Spring Boot 3、Spring Cloud Alibaba、Vue 3、Nginx 与 MySQL 的校园志愿服务管理平台，支持志愿活动发布、报名、签到、时长核销、活动图片管理、公告管理、意见反馈工单、个人志愿足迹导出，以及通过独立 `mcp-service` 对外暴露 MCP 能力。
+这是一个 Spring Boot 3 + Spring Cloud Alibaba + Vue 3 的微服务示例项目。当前仓库只保留三种部署方式：
 
-## 1. 项目概览
-
-- 前端：Vue 3 + Vite + Element Plus
-- 网关：`gateway-service`，端口 `9000`
-- 用户服务：`user-service`，端口 `8100`
-- 活动服务：`activity-service`，端口 `8200`
-- 公告服务：`announcement-service`，端口 `8300`
-- 意见反馈服务：`feedback-service`，端口 `8400`
-- 监控服务：`monitor-service`，端口 `9100`
-- MCP 服务：`mcp-service`，端口 `9300`
-- 注册中心：Nacos，端口 `8848`
-- 数据库：MySQL
-- 缓存：Redis
-- 图片存储：MinIO
-
-## 2. 当前部署形态
-
-本项目现在只保留三种部署方式：
-
-| 方式 | 目录 | 说明 |
+| 部署方式 | 入口 | 适合场景 |
 | --- | --- | --- |
-| 本机部署 | `deploy/local` | 本机运行 MySQL、Redis、Nacos、MinIO、后端服务和前端，Nginx 做统一入口 |
-| Docker 单栈 | `docker-compose.yml` / `deploy/docker` | 默认部署方式，每个服务一个容器，适合单机快速运行 |
-| Kubernetes | `deploy/k8s` | 业务服务多副本 Deployment，中间件 StatefulSet + PVC，Ingress Controller 统一入口 |
+| 本机部署 | `deploy/local` | 开发调试 |
+| Docker 单栈 | `docker-compose.yml` / `deploy/docker` | 默认单机运行 |
+| Kubernetes | `deploy/k8s` | kind 多节点、多副本、Ingress、自动扩容演示 |
 
-旧的多栈 Compose、蓝绿分流和 Compose 拆分文件已经移除；根目录仅保留默认单机入口 `docker-compose.yml`。
+## 项目结构
 
-## 3. 仓库结构
-
-- `services/`：后端 Maven 聚合工程
-- `frontend2/`：Vue 3 前端工程
-- `deploy/local/`：本机部署配置
-- `docker-compose.yml`：默认 Docker 单栈入口
-- `deploy/docker/`：Docker 单栈部署配置
-- `deploy/k8s/`：Kubernetes 部署配置
-- `deploy/common/`：部署共用资源，例如 `bootstrap-db.sql`
-- `docs/`：分主题文档中心
-
-## 4. 本机运行摘要
-
-```bash
-mysql -u root -p < deploy/common/bootstrap-db.sql
-mvn clean install -DskipTests
-cd frontend2
-npm install
-npm run dev
+```text
+cloud-demo/
+├─ services/              # 后端微服务
+├─ frontend2/             # Vue 前端
+├─ deploy/
+│  ├─ common/             # 共用 SQL
+│  ├─ local/              # 本机部署
+│  ├─ docker/             # Docker 单栈部署
+│  └─ k8s/                # Kubernetes 部署
+├─ docker-compose.yml     # 默认 Docker 单栈入口
+├─ .env.example           # Docker 默认环境变量模板
+└─ docs/deploy/DEPLOY.md  # 三种部署方式说明
 ```
 
-生产静态资源模式可使用：
+## 默认 Docker 启动
 
-- `deploy/local/nginx/cloud-demo.local.conf`
-
-访问：
-
-- 前端开发模式：`http://localhost:3000`
-- 本机 Nginx 模式：`http://localhost/`
-- 监控后台：`http://localhost/monitor/`
-- MCP：`http://localhost/mcp`
-
-## 5. Docker 单栈运行摘要
+在项目根目录执行：
 
 ```powershell
 Copy-Item .env.example .env
-docker compose up -d --build
-```
-
-```bash
-cp .env.example .env
 docker compose up -d --build
 ```
 
@@ -89,14 +49,50 @@ docker compose up -d --build
 docker compose down
 ```
 
-## 6. Kubernetes 运行摘要
+## 本机部署
+
+```powershell
+mysql -u root -p < deploy/common/bootstrap-db.sql
+mvn clean install -DskipTests
+cd frontend2
+npm install
+npm run dev
+```
+
+本机 Nginx 配置在 `deploy/local/nginx/cloud-demo.local.conf`。
+
+## Kubernetes 部署
+
+本机推荐使用 kind 模拟 1 个 control-plane + 3 个 worker：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File deploy\k8s\scripts\kind-up.ps1
+```
+
+它会创建 `cloud-demo` kind 集群、加载本地镜像、安装 Ingress Controller / Metrics Server、部署项目并初始化数据库。
+
+查看节点：
+
+```powershell
+kubectl get nodes -o wide
+```
+
+也可以手动部署到已有集群：
+
+先准备密钥：
+
+```powershell
+Copy-Item deploy\k8s\cloud-demo\secret.example.yaml deploy\k8s\cloud-demo\secret.yaml
+```
+
+然后替换 `secret.yaml` 内的密码和密钥，执行：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File deploy\k8s\scripts\apply-all.ps1
 powershell -ExecutionPolicy Bypass -File deploy\k8s\scripts\init-db.ps1
 ```
 
-本机 Docker Desktop 访问：
+本机访问：
 
 ```powershell
 kubectl -n ingress-nginx port-forward svc/ingress-nginx-controller 18081:80
@@ -114,22 +110,15 @@ hosts 增加：
 - `http://grafana.cloud-demo.local:18081/`
 - `http://prometheus.cloud-demo.local:18081/`
 
-## 7. 默认测试账号
+Kubernetes 部署已包含 HPA 自动扩容配置。HPA 依赖集群安装 Metrics Server，可用下面命令查看状态：
 
-| 角色 | 用户名 | 密码 |
-| --- | --- | --- |
-| 管理员 | `admin` | `password123` |
-| 志愿者 | `student01` - `student10` | `password123` |
+```powershell
+kubectl -n cloud-demo get hpa
+```
 
-## 8. 文档导航
+## 更多部署说明
 
-- [文档中心](docs/README.md)
-- [快速开始](docs/setup/QUICKSTART.md)
-- [部署说明](docs/deploy/DEPLOY.md)
-- [架构说明](docs/architecture/ARCHITECTURE.md)
-- [API 测试](docs/testing/API_TEST.md)
-- [MCP 连接说明](docs/mcp/MCP_CONNECTION.md)
-- [可观测栈说明](docs/observability/OBSERVABILITY.md)
-- [目录结构](docs/overview/DIRECTORY_STRUCTURE.md)
-- [技术说明](docs/overview/TECHNOLOGY_STACK.md)
-- [项目交付摘要](docs/overview/PROJECT_SUMMARY.md)
+部署文档：
+
+- `docs/deploy/DEPLOY.md`
+- `docs/deploy/KIND_MULTI_NODE_REPORT.md`

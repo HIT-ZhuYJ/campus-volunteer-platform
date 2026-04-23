@@ -1,0 +1,17 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: cloud-demo
+nodes:
+  - role: control-plane
+    labels:
+      ingress-ready: "true"
+    extraPortMappings:
+      - containerPort: 80
+        hostPort: 18081
+        protocol: TCP
+      - containerPort: 443
+        hostPort: 18443
+        protocol: TCP
+  - role: worker
+  - role: worker
+  - role: worker

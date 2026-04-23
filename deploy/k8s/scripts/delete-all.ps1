@@ -1,4 +1,7 @@
 $ErrorActionPreference = "Stop"
+if (Get-Variable PSNativeCommandUseErrorActionPreference -ErrorAction SilentlyContinue) {
+    $PSNativeCommandUseErrorActionPreference = $false
+}
 
 $ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RootDir = Resolve-Path (Join-Path $ScriptRoot "..\..\..")
@@ -8,6 +11,7 @@ $IngressNginxManifest = "https://raw.githubusercontent.com/kubernetes/ingress-ng
 kubectl delete -f (Join-Path $RootDir "deploy\k8s\observability\stack.yaml") --ignore-not-found
 kubectl delete -f (Join-Path $RootDir "deploy\k8s\observability\configmaps.yaml") --ignore-not-found
 kubectl delete -f (Join-Path $RootDir "deploy\k8s\cloud-demo\ingress.yaml") --ignore-not-found
+kubectl delete -f (Join-Path $RootDir "deploy\k8s\cloud-demo\autoscaling.yaml") --ignore-not-found
 kubectl delete -f (Join-Path $RootDir "deploy\k8s\cloud-demo\edge-nginx.yaml") --ignore-not-found
 kubectl delete -f (Join-Path $RootDir "deploy\k8s\cloud-demo\apps.yaml") --ignore-not-found
 kubectl delete -f (Join-Path $RootDir "deploy\k8s\cloud-demo\middleware.yaml") --ignore-not-found

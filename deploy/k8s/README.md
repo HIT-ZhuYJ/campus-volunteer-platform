@@ -1,105 +1,72 @@
-# cloud-demo Kubernetes deployment
+# Kubernetes 部署
 
-This directory contains the Kubernetes deployment for cloud-demo:
+本目录只保存 Kubernetes 部署需要的资源。
 
-- stateless services as `Deployment replicas: 3`
-- stateful middleware as `StatefulSet + PVC`
-- edge entry through `edge-nginx + Ingress`
-- observability stack on Kubernetes (`Prometheus + Loki + Tempo + Promtail + Grafana + OTel Collector`)
+## 文件
 
-## Directory layout
+- `namespaces.yaml`：命名空间
+- `kind-config.yaml`：1 个 control-plane + 3 个 worker 的 kind 集群配置
+- `cloud-demo/configmap.yaml`：共享配置
+- `cloud-demo/secret.example.yaml`：密钥模板
+- `cloud-demo/middleware.yaml`：MySQL、Redis、RabbitMQ、MinIO、Nacos
+- `cloud-demo/apps.yaml`：后端微服务
+- `cloud-demo/edge-nginx.yaml`：前端和项目边缘代理
+- `cloud-demo/ingress.yaml`：Ingress
+- `cloud-demo/autoscaling.yaml`：HPA 自动扩容
+- `observability/*`：Prometheus、Grafana、Loki、Tempo、OTel Collector
+- `scripts/*`：部署、清理、初始化数据库
 
-- `namespaces.yaml`: `cloud-demo` and `observability` namespaces
-- `cloud-demo/configmap.yaml`: shared runtime config
-- `cloud-demo/secret.example.yaml`: secret template, copy to `secret.yaml` before apply
-- `cloud-demo/middleware.yaml`: MySQL / Redis / RabbitMQ / MinIO / Nacos
-- `cloud-demo/apps.yaml`: gateway / user / activity / announcement / feedback / monitor / mcp
-- `cloud-demo/edge-nginx.yaml`: edge nginx configmap + deployment + service
-- `cloud-demo/ingress.yaml`: business ingress
-- `observability/configmaps.yaml`: Prometheus/Promtail/Otel/Loki/Tempo/Grafana config
-- `observability/stack.yaml`: observability workloads + RBAC + ingress
-- `scripts/*`: apply/delete and DB init scripts
+## kind 多节点部署
 
-## Images
+```powershell
+powershell -ExecutionPolicy Bypass -File deploy\k8s\scripts\kind-up.ps1
+```
 
-Build and push these images before deployment:
+脚本会创建 `cloud-demo` kind 集群、安装 kind 专用 ingress-nginx、加载项目镜像、部署资源并初始化数据库。
 
-- `cloud-demo/edge-nginx:latest`
-- `cloud-demo/gateway-service:latest`
-- `cloud-demo/user-service:latest`
-- `cloud-demo/activity-service:latest`
-- `cloud-demo/announcement-service:latest`
-- `cloud-demo/feedback-service:latest`
-- `cloud-demo/monitor-service:latest`
-- `cloud-demo/mcp-service:latest`
+查看节点：
 
-If your registry path is different, update the `image` fields in:
+```powershell
+kubectl get nodes -o wide
+```
 
-- `deploy/k8s/cloud-demo/apps.yaml`
-- `deploy/k8s/cloud-demo/edge-nginx.yaml`
+## 已有集群部署
 
-## Deploy
+```powershell
+Copy-Item deploy\k8s\cloud-demo\secret.example.yaml deploy\k8s\cloud-demo\secret.yaml
+powershell -ExecutionPolicy Bypass -File deploy\k8s\scripts\apply-all.ps1
+powershell -ExecutionPolicy Bypass -File deploy\k8s\scripts\init-db.ps1
+```
 
-1. Create `deploy/k8s/cloud-demo/secret.yaml`:
-   - copy `deploy/k8s/cloud-demo/secret.example.yaml`
-   - replace all passwords/keys
-2. Apply resources:
-   - Linux/macOS: `bash deploy/k8s/scripts/apply-all.sh`
-   - PowerShell: `powershell -ExecutionPolicy Bypass -File deploy/k8s/scripts/apply-all.ps1`
-   - The script installs ingress-nginx `controller-v1.15.1` before applying project Ingress resources.
-3. Import schema and seed data:
-   - Linux/macOS: `bash deploy/k8s/scripts/init-db.sh`
-   - PowerShell: `powershell -ExecutionPolicy Bypass -File deploy/k8s/scripts/init-db.ps1`
-   - The SQL file is shared at `deploy/common/bootstrap-db.sql`.
-
-## Ingress Controller and edge nginx
-
-ingress-nginx is the Kubernetes Ingress Controller. It watches `Ingress` resources and accepts traffic for hosts such as `cloud-demo.local`, then forwards that traffic to the `edge-nginx` Service.
-
-`edge-nginx` remains the project edge workload. It serves the built frontend and applies project-specific reverse proxy rules to the gateway and backend services. ingress-nginx does not replace `edge-nginx` in this topology.
-
-## Verify
-
-- `kubectl -n cloud-demo get pods`
-- `kubectl -n observability get pods`
-- `kubectl -n cloud-demo get ingress`
-- `kubectl -n observability get ingress`
-
-Default ingress hosts:
-
-- `cloud-demo.local`
-- `grafana.cloud-demo.local`
-- `prometheus.cloud-demo.local`
-
-If needed, map these hosts in your local DNS or `/etc/hosts`.
-
-## Local access on Docker Desktop / WSL
-
-On Docker Desktop or other local clusters, the Ingress Controller `LoadBalancer` address may not be directly reachable from the host OS. If `kubectl -n cloud-demo get ingress` shows an address but the browser times out, use a local port-forward to the Ingress Controller:
+## 访问
 
 ```powershell
 kubectl -n ingress-nginx port-forward svc/ingress-nginx-controller 18081:80
 ```
 
-Add these entries to `C:\Windows\System32\drivers\etc\hosts`:
+hosts：
 
 ```text
 127.0.0.1 cloud-demo.local grafana.cloud-demo.local prometheus.cloud-demo.local
 ```
 
-Then open:
+地址：
 
 - `http://cloud-demo.local:18081/`
 - `http://grafana.cloud-demo.local:18081/`
 - `http://prometheus.cloud-demo.local:18081/`
 
-The local traffic path is:
+## 自动扩容
 
-```text
-Browser -> 127.0.0.1:18081 -> ingress-nginx -> edge-nginx -> frontend / gateway / backend services
+HPA 配置在 `cloud-demo/autoscaling.yaml`。它会根据 CPU 和内存利用率扩缩无状态服务副本。
+
+`scripts/apply-all.ps1` 和 `scripts/apply-all.sh` 会在缺失时安装 Metrics Server。默认会为本地演示集群追加 `--kubelet-insecure-tls`；如果你的生产集群 kubelet 证书完整，可以在执行脚本前设置 `CLOUD_DEMO_METRICS_SERVER_INSECURE_TLS=false`。
+
+查看：
+
+```powershell
+kubectl -n cloud-demo get hpa
+kubectl -n cloud-demo describe hpa activity-service
 ```
 
-## Rollback / cleanup
-
-- Linux/macOS: `bash deploy/k8s/scripts/delete-all.sh`
-- PowerShell: `powershell -ExecutionPolicy Bypass -File deploy/k8s/scripts/delete-all.ps1`
+如果 `TARGETS` 显示 `<unknown>`，说明集群缺少 Metrics Server 或指标还没有采集完成。

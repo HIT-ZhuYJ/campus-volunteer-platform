@@ -8,6 +8,7 @@ INGRESS_NGINX_MANIFEST="https://raw.githubusercontent.com/kubernetes/ingress-ngi
 kubectl delete -f "${ROOT_DIR}/deploy/k8s/observability/stack.yaml" --ignore-not-found
 kubectl delete -f "${ROOT_DIR}/deploy/k8s/observability/configmaps.yaml" --ignore-not-found
 kubectl delete -f "${ROOT_DIR}/deploy/k8s/cloud-demo/ingress.yaml" --ignore-not-found
+kubectl delete -f "${ROOT_DIR}/deploy/k8s/cloud-demo/autoscaling.yaml" --ignore-not-found
 kubectl delete -f "${ROOT_DIR}/deploy/k8s/cloud-demo/edge-nginx.yaml" --ignore-not-found
 kubectl delete -f "${ROOT_DIR}/deploy/k8s/cloud-demo/apps.yaml" --ignore-not-found
 kubectl delete -f "${ROOT_DIR}/deploy/k8s/cloud-demo/middleware.yaml" --ignore-not-found
